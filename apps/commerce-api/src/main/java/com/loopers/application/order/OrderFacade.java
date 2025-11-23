@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -31,11 +32,16 @@ public class OrderFacade {
     public OrderInfo createOrder(String userId, List<OrderDto.OrderItemRequest> itemRequests) {
         validateItem(itemRequests);
 
+        // 락 순서
+        List<OrderDto.OrderItemRequest> sortedItems = itemRequests.stream()
+                .sorted(Comparator.comparing(OrderDto.OrderItemRequest::productId))
+                .toList();
+
         // 상품 재고 차감 후 주문 생성
         long totalAmount = 0;
         List<OrderItem> orderItems = new ArrayList<>();
 
-        for (OrderDto.OrderItemRequest itemRequest : itemRequests) {
+        for (OrderDto.OrderItemRequest itemRequest : sortedItems) {
 
             Product product = productDomainService.decreaseStock(
                     itemRequest.productId(),
