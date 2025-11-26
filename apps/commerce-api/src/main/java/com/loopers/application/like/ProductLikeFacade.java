@@ -27,39 +27,17 @@ public class ProductLikeFacade {
 
 
     public ProductLikeDto.LikeResponse likeProduct(String userId, Long productId) {
-        // 사용자 조회
         User user = userDomainService.findUser(userId);
 
-        // 좋아요 - 낙관적 락 예외 발생 가능
-        try {
-            ProductLikeInfo info = productLikeDomainService.likeProduct(user, productId);
-            return ProductLikeDto.LikeResponse.from(info.liked(), info.totalLikes());
-
-        } catch (ObjectOptimisticLockingFailureException e) {
-            throw new CoreException(
-                    ErrorType.CONFLICT,
-                    "일시적인 오류가 발생했습니다. 다시 시도해주세요."
-            );
-        }
+        ProductLikeInfo info = productLikeDomainService.likeProduct(user, productId);
+        return ProductLikeDto.LikeResponse.from(info.liked(), info.totalLikes());
     }
 
     public ProductLikeDto.LikeResponse unlikeProduct(String userId, Long productId) {
-        // 사용자 조회
         User user = userDomainService.findUser(userId);
 
-        // 좋아요 취소 - 낙관적 락 예외 발생 가능
-        try {
-            ProductLikeInfo info = productLikeDomainService.unlikeProduct(user, productId);
-            return ProductLikeDto.LikeResponse.from(info.liked(), info.totalLikes());
-
-        } catch (
-                ObjectOptimisticLockingFailureException e) {
-            throw new CoreException(
-                    ErrorType.CONFLICT,
-                    "일시적인 오류가 발생했습니다. 다시 시도해주세요."
-            );
-        }
-
+        ProductLikeInfo info = productLikeDomainService.unlikeProduct(user, productId);
+        return ProductLikeDto.LikeResponse.from(info.liked(), info.totalLikes());
     }
 
     public ProductLikeDto.LikedProductsResponse getLikedProducts(String userId) {
