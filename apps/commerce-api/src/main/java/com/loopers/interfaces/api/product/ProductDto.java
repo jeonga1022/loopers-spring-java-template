@@ -38,6 +38,7 @@ public class ProductDto {
             Long id,
             String name,
             long price,
+            Long totalLikes,
             BrandSummary brand
     ) {
         public static ProductResponse from(Product product, Brand brand) {
@@ -45,6 +46,7 @@ public class ProductDto {
                     product.getId(),
                     product.getName(),
                     product.getPrice(),
+                    product.getTotalLikes(),
                     BrandSummary.from(brand)
             );
         }

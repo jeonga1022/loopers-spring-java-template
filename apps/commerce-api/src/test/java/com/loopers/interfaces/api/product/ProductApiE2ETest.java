@@ -343,8 +343,11 @@ class ProductApiE2ETest {
             assertAll(() -> assertThat(response.getStatusCode().is2xxSuccessful()).isTrue(),
                     () -> assertThat(response.getBody().data().products()).hasSize(3),
                     () -> assertThat(response.getBody().data().products().get(0).name()).isEqualTo("상품 2"),
+                    () -> assertThat(response.getBody().data().products().get(0).totalLikes()).isEqualTo(4L),
                     () -> assertThat(response.getBody().data().products().get(1).name()).isEqualTo("상품 1"),
-                    () -> assertThat(response.getBody().data().products().get(2).name()).isEqualTo("상품 3"));
+                    () -> assertThat(response.getBody().data().products().get(1).totalLikes()).isEqualTo(1L),
+                    () -> assertThat(response.getBody().data().products().get(2).name()).isEqualTo("상품 3"),
+                    () -> assertThat(response.getBody().data().products().get(2).totalLikes()).isEqualTo(1L));
         }
     }
 
