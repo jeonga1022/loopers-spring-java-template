@@ -7,8 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-
-
 import java.util.Objects;
 
 @Entity

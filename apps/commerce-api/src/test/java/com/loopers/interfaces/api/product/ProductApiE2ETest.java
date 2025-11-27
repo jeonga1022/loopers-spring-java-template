@@ -1,9 +1,9 @@
 package com.loopers.interfaces.api.product;
 
 import com.loopers.domain.brand.Brand;
-import com.loopers.domain.like.ProductLikeDomainService;
 import com.loopers.domain.product.Product;
 import com.loopers.infrastructure.brand.BrandJpaRepository;
+import com.loopers.infrastructure.cache.ProductCacheService;
 import com.loopers.infrastructure.product.ProductJpaRepository;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.utils.DatabaseCleanUp;
@@ -33,7 +33,7 @@ class ProductApiE2ETest {
     private final ProductJpaRepository productJpaRepository;
     private final BrandJpaRepository brandJpaRepository;
 
-    private final ProductLikeDomainService productLikeDomainService;
+    private final ProductCacheService productCacheService;
 
     @Autowired
     public ProductApiE2ETest(
@@ -41,18 +41,19 @@ class ProductApiE2ETest {
             DatabaseCleanUp databaseCleanUp,
             ProductJpaRepository productJpaRepository,
             BrandJpaRepository brandJpaRepository,
-            ProductLikeDomainService productLikeDomainService
+            ProductCacheService productCacheService
 
     ) {
         this.testRestTemplate = testRestTemplate;
         this.databaseCleanUp = databaseCleanUp;
         this.productJpaRepository = productJpaRepository;
         this.brandJpaRepository = brandJpaRepository;
-        this.productLikeDomainService = productLikeDomainService;
+        this.productCacheService = productCacheService;
     }
 
     @AfterEach
     void tearDown() {
+        productCacheService.clearAllProductCache();
         databaseCleanUp.truncateAllTables();
     }
 
@@ -391,7 +392,8 @@ class ProductApiE2ETest {
             String url = ENDPOINT + "/999999";
 
             ParameterizedTypeReference<ApiResponse<Object>> type =
-                    new ParameterizedTypeReference<>() {};
+                    new ParameterizedTypeReference<>() {
+                    };
 
             // act
             ResponseEntity<ApiResponse<Object>> response =
@@ -424,7 +426,8 @@ class ProductApiE2ETest {
 
             // act
             ParameterizedTypeReference<ApiResponse<Object>> type =
-                    new ParameterizedTypeReference<>() {};
+                    new ParameterizedTypeReference<>() {
+                    };
 
             ResponseEntity<ApiResponse<Object>> response =
                     testRestTemplate.exchange(url, HttpMethod.GET, null, type);

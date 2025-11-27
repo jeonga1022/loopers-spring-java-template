@@ -3,6 +3,7 @@ package com.loopers.interfaces.api.product;
 import com.loopers.domain.brand.Brand;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductWithBrand;
+import com.loopers.infrastructure.cache.ProductDetailCache;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -96,6 +97,20 @@ public class ProductDto {
 
         public static ProductDetailResponse from(ProductWithBrand productWithBrand, boolean isLiked) {
             return from(productWithBrand.getProduct(), productWithBrand.getBrand(), isLiked);
+        }
+
+        // 캐시에서 복원 (id 제외)
+        public static ProductDetailResponse from(Long productId, ProductDetailCache cache) {
+            return new ProductDetailResponse(
+                    productId,
+                    cache.getName(),
+                    cache.getDescription(),
+                    cache.getPrice(),
+                    cache.getStock(),
+                    cache.getTotalLikes(),
+                    cache.getBrand(),
+                    null
+            );
         }
     }
 
