@@ -125,6 +125,21 @@ public class ProductCacheService {
     }
 
     /**
+     * 상품 상세 캐시 삭제 (무효화)
+     *
+     * 상품 정보가 변경되었을 때 캐시를 즉시 삭제합니다.
+     */
+    public void deleteProductDetail(Long productId) {
+        String key = PRODUCT_DETAIL_KEY_PREFIX + productId;
+
+        try {
+            redisTemplate.delete(key);
+        } catch (Exception e) {
+            // 캐시 삭제 실패는 무시 (다음 요청에서 DB 조회)
+        }
+    }
+
+    /**
      * 모든 상품 캐시 삭제
      *
      * 테스트 격리를 위해 사용
@@ -147,16 +162,31 @@ public class ProductCacheService {
         }
     }
 
-    @Data
     public static class ProductListCache {
-        private List<ProductResponse> products;
+        private List<Long> productIds;
         private long totalCount;
 
         public ProductListCache() {
         }
 
-        public ProductListCache(List<ProductResponse> products, long totalCount) {
-            this.products = products;
+        public ProductListCache(List<Long> productIds, long totalCount) {
+            this.productIds = productIds;
+            this.totalCount = totalCount;
+        }
+
+        public List<Long> getProductIds() {
+            return productIds;
+        }
+
+        public void setProductIds(List<Long> productIds) {
+            this.productIds = productIds;
+        }
+
+        public long getTotalCount() {
+            return totalCount;
+        }
+
+        public void setTotalCount(long totalCount) {
             this.totalCount = totalCount;
         }
     }

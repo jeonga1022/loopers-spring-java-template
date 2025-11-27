@@ -442,4 +442,115 @@ class ProductApiE2ETest {
         }
     }
 
+    @DisplayName("Redis Cache 동작 확인")
+    @Nested
+    class CacheTest {
+
+        @DisplayName("상품 목록 조회 시 캐시가 저장되고 재사용된다")
+        @Test
+        void cacheTest1() {
+            Brand brandA = brandJpaRepository.save(Brand.create("브랜드A"));
+            productJpaRepository.save(Product.create("상품A", "설명", 10_000, 100L, brandA.getId()));
+            productJpaRepository.save(Product.create("상품B", "설명", 20_000, 100L, brandA.getId()));
+
+            String url = ENDPOINT + "?page=0&size=20";
+
+            ParameterizedTypeReference<ApiResponse<ProductDto.ProductListResponse>> type =
+                    new ParameterizedTypeReference<>() {
+                    };
+
+            ResponseEntity<ApiResponse<ProductDto.ProductListResponse>> firstResponse =
+                    testRestTemplate.exchange(url, HttpMethod.GET, null, type);
+
+            assertThat(firstResponse.getStatusCode().is2xxSuccessful()).isTrue();
+            assertThat(firstResponse.getBody()).isNotNull();
+            assertThat(firstResponse.getBody().data().products()).hasSize(2);
+
+            var cachedList = productCacheService.getProductList(null, "latest", 0, 20);
+
+            assertAll(
+                    () -> assertThat(cachedList).isPresent(),
+                    () -> assertThat(cachedList.get().getProductIds()).hasSize(2),
+                    () -> assertThat(cachedList.get().getTotalCount()).isEqualTo(2)
+            );
+
+            ResponseEntity<ApiResponse<ProductDto.ProductListResponse>> secondResponse =
+                    testRestTemplate.exchange(url, HttpMethod.GET, null, type);
+
+            assertAll(
+                    () -> assertThat(secondResponse.getBody().data().products()).hasSize(2),
+                    () -> assertThat(secondResponse.getBody().data().totalCount()).isEqualTo(2)
+            );
+        }
+
+        @DisplayName("상품 상세 조회 시 캐시가 저장되고 재사용된다")
+        @Test
+        void cacheTest2() {
+            Brand brandA = brandJpaRepository.save(Brand.create("브랜드A"));
+            Product productA = productJpaRepository.save(
+                    Product.create("상품A", "설명", 10_000, 100L, brandA.getId())
+            );
+
+            String url = ENDPOINT + "/" + productA.getId();
+
+            ParameterizedTypeReference<ApiResponse<ProductDto.ProductDetailResponse>> type =
+                    new ParameterizedTypeReference<>() {
+                    };
+
+            ResponseEntity<ApiResponse<ProductDto.ProductDetailResponse>> firstResponse =
+                    testRestTemplate.exchange(url, HttpMethod.GET, null, type);
+
+            var cachedDetail = productCacheService.getProductDetail(productA.getId());
+
+            assertAll(
+                    () -> assertThat(firstResponse.getStatusCode().is2xxSuccessful()).isTrue(),
+                    () -> assertThat(cachedDetail).isPresent(),
+                    () -> assertThat(cachedDetail.get().getName()).isEqualTo("상품A"),
+                    () -> assertThat(cachedDetail.get().getPrice()).isEqualTo(10_000L)
+            );
+
+            ResponseEntity<ApiResponse<ProductDto.ProductDetailResponse>> secondResponse =
+                    testRestTemplate.exchange(url, HttpMethod.GET, null, type);
+
+            assertAll(
+                    () -> assertThat(secondResponse.getBody().data().name()).isEqualTo("상품A"),
+                    () -> assertThat(secondResponse.getBody().data().price()).isEqualTo(10_000L)
+            );
+        }
+
+        @DisplayName("목록 캐시는 ID만 저장하고 각 상품 detail 캐시와 조합된다")
+        @Test
+        void cacheTest3() {
+            Brand brandA = brandJpaRepository.save(Brand.create("브랜드A"));
+            Product product1 = productJpaRepository.save(
+                    Product.create("상품1", "설명", 10_000, 100L, brandA.getId())
+            );
+            Product product2 = productJpaRepository.save(
+                    Product.create("상품2", "설명", 20_000, 100L, brandA.getId())
+            );
+
+            String url = ENDPOINT + "?page=0&size=20";
+
+            ParameterizedTypeReference<ApiResponse<ProductDto.ProductListResponse>> type =
+                    new ParameterizedTypeReference<>() {
+                    };
+
+            testRestTemplate.exchange(url, HttpMethod.GET, null, type);
+
+            var listCache = productCacheService.getProductList(null, "latest", 0, 20);
+            var detail1Cache = productCacheService.getProductDetail(product1.getId());
+            var detail2Cache = productCacheService.getProductDetail(product2.getId());
+
+            assertAll(
+                    () -> assertThat(listCache).isPresent(),
+                    () -> assertThat(listCache.get().getProductIds()).hasSize(2),
+                    () -> assertThat(listCache.get().getProductIds()).contains(product1.getId(), product2.getId()),
+                    () -> assertThat(detail1Cache).isPresent(),
+                    () -> assertThat(detail1Cache.get().getName()).isEqualTo("상품1"),
+                    () -> assertThat(detail2Cache).isPresent(),
+                    () -> assertThat(detail2Cache.get().getName()).isEqualTo("상품2")
+            );
+        }
+    }
+
 }
