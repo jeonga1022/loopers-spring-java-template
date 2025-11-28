@@ -1,8 +1,8 @@
 package com.loopers.application.like;
 
 import com.loopers.domain.like.ProductLikeDomainService;
+import com.loopers.domain.like.ProductLikedEvent;
 import com.loopers.domain.product.Product;
-import com.loopers.domain.product.ProductDomainService;
 import com.loopers.domain.product.ProductLikeInfo;
 import com.loopers.domain.user.User;
 import com.loopers.domain.user.UserDomainService;
@@ -10,6 +10,7 @@ import com.loopers.infrastructure.cache.ProductCacheService;
 import com.loopers.interfaces.api.like.ProductLikeDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -22,6 +23,7 @@ public class ProductLikeFacade {
     private final ProductLikeDomainService productLikeDomainService;
     private final UserDomainService userDomainService;
     private final ProductCacheService productCacheService;
+    private final ApplicationEventPublisher eventPublisher;
 
 
     public ProductLikeDto.LikeResponse likeProduct(String userId, Long productId) {
@@ -29,6 +31,7 @@ public class ProductLikeFacade {
 
         ProductLikeInfo info = productLikeDomainService.likeProduct(user, productId);
         productCacheService.deleteProductDetail(productId);
+        eventPublisher.publishEvent(new ProductLikedEvent(this, productId));
         return ProductLikeDto.LikeResponse.from(info.liked(), info.totalLikes());
     }
 
@@ -37,6 +40,7 @@ public class ProductLikeFacade {
 
         ProductLikeInfo info = productLikeDomainService.unlikeProduct(user, productId);
         productCacheService.deleteProductDetail(productId);
+        eventPublisher.publishEvent(new ProductLikedEvent(this, productId));
         return ProductLikeDto.LikeResponse.from(info.liked(), info.totalLikes());
     }
 

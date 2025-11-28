@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface ProductJpaRepository extends JpaRepository<Product, Long> {
@@ -32,4 +33,17 @@ public interface ProductJpaRepository extends JpaRepository<Product, Long> {
     @Modifying
     @Query("UPDATE Product p SET p.totalLikes = p.totalLikes - 1 WHERE p.id = :id AND p.totalLikes > 0")
     void decrementLikeCount(Long id);
+
+    @Query(value = """
+            SELECT p.id as product_id, p.total_likes, COUNT(pl.id) as actual_likes
+            FROM products p
+            LEFT JOIN product_likes pl ON p.id = pl.product_id
+            GROUP BY p.id
+            HAVING p.total_likes != COUNT(pl.id)
+            """, nativeQuery = true)
+    List<Map<String, Object>> findLikeCountInconsistencies();
+
+    @Modifying
+    @Query("UPDATE Product p SET p.totalLikes = :totalLikes WHERE p.id = :id")
+    void updateProductTotalLikes(Long id, Long totalLikes);
 }
