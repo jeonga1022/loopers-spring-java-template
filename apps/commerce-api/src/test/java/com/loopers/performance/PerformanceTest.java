@@ -22,6 +22,12 @@ import org.springframework.data.domain.Sort;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -395,7 +401,60 @@ class PerformanceTest {
         }
     }
 
-    // Helper methods
+    @DisplayName("동시 요청 시 캐시 성능")
+    @Nested
+    class ConcurrentPerformance {
+
+        @DisplayName("동시 요청 시 캐시 성능")
+        @Test
+        void concurrentCachePerformanceTest() throws InterruptedException {
+            int threadCount = 50;
+            int requestsPerThread = 20;
+
+            ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+            CountDownLatch latch = new CountDownLatch(threadCount);
+
+            // 캐시 워밍업
+            productFacade.getProducts(null, "latest", 0, 20);
+
+            AtomicLong totalTime = new AtomicLong(0);
+            AtomicInteger successCount = new AtomicInteger(0);
+
+            for (int i = 0; i < threadCount; i++) {
+                executor.submit(() -> {
+                    try {
+                        for (int j = 0; j < requestsPerThread; j++) {
+                            long start = System.nanoTime();
+                            productFacade.getProducts(null, "latest", 0, 20);
+                            long end = System.nanoTime();
+
+                            totalTime.addAndGet(end - start);
+                            successCount.incrementAndGet();
+                        }
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            }
+
+            latch.await(30, TimeUnit.SECONDS);
+            executor.shutdown();
+
+            int totalRequests = threadCount * requestsPerThread;
+            double avgLatency = (totalTime.get() / successCount.get()) / 1_000_000.0;
+
+            log.info("=== 동시 요청 테스트 ({} 스레드 x {} 요청) ===", threadCount, requestsPerThread);
+            log.info("총 요청: {} | 성공: {} | 평균 응답시간: {}ms",
+                    totalRequests, successCount.get(), String.format("%.2f", avgLatency));
+
+            assertThat(successCount.get()).isEqualTo(totalRequests);
+            assertThat(avgLatency).isLessThan(50.0); // 동시 요청에서도 50ms 이하
+        }
+
+    }
+
+
+        // Helper methods
     private double calculateAverage(double[] values) {
         double sum = 0;
         for (double value : values) {
