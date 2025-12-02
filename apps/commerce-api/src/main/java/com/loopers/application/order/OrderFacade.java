@@ -3,7 +3,12 @@ package com.loopers.application.order;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderDomainService;
-import com.loopers.domain.point.PointAccountDomainService;
+import com.loopers.domain.order.Payment;
+import com.loopers.domain.order.PaymentDomainService;
+import com.loopers.domain.order.PaymentType;
+import com.loopers.domain.order.strategy.PaymentContext;
+import com.loopers.domain.order.strategy.PaymentStrategy;
+import com.loopers.domain.order.strategy.PaymentStrategyFactory;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductDomainService;
 import com.loopers.infrastructure.cache.ProductCacheService;
@@ -24,11 +29,21 @@ public class OrderFacade {
 
     private final OrderDomainService orderDomainService;
     private final ProductDomainService productDomainService;
-    private final PointAccountDomainService pointAccountDomainService;
     private final ProductCacheService productCacheService;
+    private final PaymentDomainService paymentDomainService;
+    private final PaymentStrategyFactory paymentStrategyFactory;
 
     @Transactional
     public OrderInfo createOrder(String userId, List<OrderDto.OrderItemRequest> itemRequests) {
+        return createOrder(userId, itemRequests, PaymentType.POINT_ONLY);
+    }
+
+    @Transactional
+    public OrderInfo createOrder(
+        String userId,
+        List<OrderDto.OrderItemRequest> itemRequests,
+        PaymentType paymentType
+    ) {
         validateItem(itemRequests);
 
         // 락 순서
@@ -36,7 +51,7 @@ public class OrderFacade {
                 .sorted(Comparator.comparing(OrderDto.OrderItemRequest::productId))
                 .toList();
 
-        // 상품 재고 차감 후 주문 생성
+        // 상품 재고 차감
         long totalAmount = 0;
         List<OrderItem> orderItems = new ArrayList<>();
 
@@ -60,11 +75,31 @@ public class OrderFacade {
             ));
         }
 
-        // 포인트 차감
-        pointAccountDomainService.deduct(userId, totalAmount);
-
         // 주문 생성
         Order order = orderDomainService.createOrder(userId, orderItems, totalAmount);
+
+        // Payment 생성
+        Payment payment = paymentDomainService.createPayment(
+            order.getId(),
+            userId,
+            totalAmount,
+            paymentType
+        );
+
+        // 결제 실행
+        order.startPayment();
+
+        PaymentStrategy strategy = paymentStrategyFactory.create(paymentType);
+        PaymentContext context = strategy.build(userId, totalAmount);
+
+        try {
+            strategy.executePayment(context);
+            payment.markAsSuccess("internal-payment");
+            order.confirm();
+        } catch (CoreException e) {
+            payment.markAsFailed(e.getMessage());
+            throw e;
+        }
 
         return OrderInfo.from(order);
     }

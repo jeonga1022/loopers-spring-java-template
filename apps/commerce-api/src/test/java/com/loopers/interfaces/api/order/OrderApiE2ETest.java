@@ -242,7 +242,7 @@ class OrderApiE2ETest {
             assertAll(
                     () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST),
                     () -> assertThat(response.getBody()).isNotNull(),
-                    () -> assertThat(response.getBody().meta().message()).contains("포인트가 부족합니다.")
+                    () -> assertThat(response.getBody().meta().message()).contains("포인트가 부족합니다")
             );
         }
 
