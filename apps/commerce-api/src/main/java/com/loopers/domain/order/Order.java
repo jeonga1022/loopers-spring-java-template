@@ -52,11 +52,21 @@ public class Order extends BaseEntity {
         item.setOrder(this);
     }
 
-    public void confirm() {
+    public void startPayment() {
         if (this.status != OrderStatus.PENDING) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,
-                    "PENDING 상태에서만 확정할 수 있습니다."
+                    "PENDING 상태에서만 결제를 시작할 수 있습니다."
+            );
+        }
+        this.status = OrderStatus.PAYING;
+    }
+
+    public void confirm() {
+        if (this.status != OrderStatus.PAYING) {
+            throw new CoreException(
+                    ErrorType.BAD_REQUEST,
+                    "PAYING 상태에서만 확정할 수 있습니다."
             );
         }
         this.status = OrderStatus.CONFIRMED;

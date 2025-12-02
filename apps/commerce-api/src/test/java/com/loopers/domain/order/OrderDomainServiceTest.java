@@ -46,7 +46,7 @@ class OrderDomainServiceTest {
             Order result = service.createOrder(USER_ID, items, totalAmount);
 
             assertThat(result).isNotNull();
-            assertThat(result.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+            assertThat(result.getStatus()).isEqualTo(OrderStatus.PENDING);
             assertThat(result.getTotalAmount()).isEqualTo(totalAmount);
 
             verify(orderRepository).save(any(Order.class));
@@ -84,11 +84,12 @@ class OrderDomainServiceTest {
             long totalAmount = 10_000;
 
             Order order = Order.create(USER_ID, items, totalAmount);
+            order.startPayment();
             order.confirm();
 
             assertThatThrownBy(order::confirm)
                     .isInstanceOf(CoreException.class)
-                    .hasMessageContaining("PENDING 상태에서만 확정할 수 있습니다");
+                    .hasMessageContaining("PAYING 상태에서만 확정할 수 있습니다");
         }
 
         @Test

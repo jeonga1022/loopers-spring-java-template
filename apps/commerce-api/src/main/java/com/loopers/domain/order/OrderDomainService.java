@@ -16,12 +16,7 @@ public class OrderDomainService {
 
     @Transactional
     public Order createOrder(String userId, List<OrderItem> orderItems,  long totalAmount) {
-        // 주문 생성 (PENDING)
         Order order = Order.create(userId, orderItems, totalAmount);
-
-        // 주문 확정 (CONFIRMED)
-        order.confirm();
-
         return orderRepository.save(order);
     }
 
