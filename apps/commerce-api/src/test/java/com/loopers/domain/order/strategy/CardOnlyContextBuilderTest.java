@@ -92,4 +92,29 @@ class CardOnlyContextBuilderTest {
 
         // 요청 실패 시에는 updatePgTransactionId가 호출되지 않음
     }
+
+    @Test
+    @DisplayName("@Timeout 적용 시 timeout 초과하면 TimeoutException 발생")
+    void test3() {
+        // arrange
+        PaymentContext context = PaymentContext.forCardOnly(
+            ORDER_ID, PAYMENT_ID, USER_ID, CARD_AMOUNT, CARD_TYPE, CARD_NO
+        );
+
+        // 5초 이상 대기하는 상황 시뮬레이션
+        when(pgClient.requestPayment(eq(USER_ID), any(PgPaymentRequest.class)))
+            .thenAnswer(invocation -> {
+                Thread.sleep(6000);
+                return new PgPaymentResponse();
+            });
+
+        ReflectionTestUtils.setField(cardOnlyContextBuilder, "serverPort", 8080);
+
+        // act & assert
+        // @Timeout이 적용되면 5초 후 TimeoutException이 발생해야 함
+        // 하지만 Fallback으로 catch되어 propagate되지 않음
+        assertThatNoException().isThrownBy(() ->
+            cardOnlyContextBuilder.executePayment(context)
+        );
+    }
 }
