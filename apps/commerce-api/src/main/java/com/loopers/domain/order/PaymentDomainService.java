@@ -22,6 +22,17 @@ public class PaymentDomainService {
     }
 
     @Transactional
+    public void updatePgTransactionId(Long paymentId, String pgTransactionId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new CoreException(
+                        ErrorType.NOT_FOUND,
+                        "결제 정보를 찾을 수 없습니다. paymentId: " + paymentId
+                ));
+        payment.updatePgTransactionId(pgTransactionId);
+        paymentRepository.save(payment);
+    }
+
+    @Transactional
     public void markAsSuccess(Long paymentId, String pgTransactionId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new CoreException(

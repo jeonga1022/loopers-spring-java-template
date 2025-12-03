@@ -94,7 +94,8 @@ class OrderApiE2ETest {
                     List.of(
                             new OrderDto.OrderItemRequest(product1.getId(), 2L),
                             new OrderDto.OrderItemRequest(product2.getId(), 1L)
-                    )
+                    ),
+                    null
             );
 
             HttpHeaders headers = new HttpHeaders();
@@ -142,7 +143,8 @@ class OrderApiE2ETest {
             pointAccountJpaRepository.save(pointAccount);
 
             OrderDto.OrderCreateRequest request = new OrderDto.OrderCreateRequest(
-                    List.of()
+                    List.of(),
+                    null
             );
 
             HttpHeaders headers = new HttpHeaders();
@@ -183,7 +185,8 @@ class OrderApiE2ETest {
             );
 
             OrderDto.OrderCreateRequest request = new OrderDto.OrderCreateRequest(
-                    List.of(new OrderDto.OrderItemRequest(product.getId(), 100L))
+                    List.of(new OrderDto.OrderItemRequest(product.getId(), 100L)),
+                    null
             );
 
             HttpHeaders headers = new HttpHeaders();
@@ -223,7 +226,8 @@ class OrderApiE2ETest {
             );
 
             OrderDto.OrderCreateRequest request = new OrderDto.OrderCreateRequest(
-                    List.of(new OrderDto.OrderItemRequest(product.getId(), 10L))
+                    List.of(new OrderDto.OrderItemRequest(product.getId(), 10L)),
+                    null
             );
 
             HttpHeaders headers = new HttpHeaders();
@@ -273,7 +277,8 @@ class OrderApiE2ETest {
                     List.of(
                             new OrderDto.OrderItemRequest(product1.getId(), 2L),
                             new OrderDto.OrderItemRequest(product2.getId(), 100L)
-                    )
+                    ),
+                    null
             );
 
             HttpHeaders headers = new HttpHeaders();
@@ -339,7 +344,8 @@ class OrderApiE2ETest {
             );
 
             OrderDto.OrderCreateRequest request = new OrderDto.OrderCreateRequest(
-                    List.of(new OrderDto.OrderItemRequest(product.getId(), 1L))
+                    List.of(new OrderDto.OrderItemRequest(product.getId(), 1L)),
+                    null
             );
 
             HttpHeaders createHeaders = new HttpHeaders();
@@ -393,7 +399,8 @@ class OrderApiE2ETest {
             );
 
             OrderDto.OrderCreateRequest request = new OrderDto.OrderCreateRequest(
-                    List.of(new OrderDto.OrderItemRequest(product.getId(), 2L))
+                    List.of(new OrderDto.OrderItemRequest(product.getId(), 2L)),
+                    null
             );
 
             HttpHeaders createHeaders = new HttpHeaders();
@@ -471,7 +478,8 @@ class OrderApiE2ETest {
                 executor.submit(() -> {
                     try {
                         OrderDto.OrderCreateRequest request = new OrderDto.OrderCreateRequest(
-                                List.of(new OrderDto.OrderItemRequest(product.getId(), 1L))
+                                List.of(new OrderDto.OrderItemRequest(product.getId(), 1L)),
+                                null
                         );
 
                         HttpHeaders headers = new HttpHeaders();
@@ -526,7 +534,8 @@ class OrderApiE2ETest {
                 executor.submit(() -> {
                     try {
                         OrderDto.OrderCreateRequest request = new OrderDto.OrderCreateRequest(
-                                List.of(new OrderDto.OrderItemRequest(product.getId(), 1L))
+                                List.of(new OrderDto.OrderItemRequest(product.getId(), 1L)),
+                                null
                         );
 
                         HttpHeaders headers = new HttpHeaders();
@@ -586,7 +595,8 @@ class OrderApiE2ETest {
                 executor.submit(() -> {
                     try {
                         OrderDto.OrderCreateRequest request = new OrderDto.OrderCreateRequest(
-                                List.of(new OrderDto.OrderItemRequest(product.getId(), 1L))
+                                List.of(new OrderDto.OrderItemRequest(product.getId(), 1L)),
+                                null
                         );
 
                         HttpHeaders headers = new HttpHeaders();

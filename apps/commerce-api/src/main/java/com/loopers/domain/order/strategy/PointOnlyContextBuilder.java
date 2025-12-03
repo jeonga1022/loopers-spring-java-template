@@ -17,11 +17,6 @@ public class PointOnlyContextBuilder implements PaymentStrategy {
     }
 
     @Override
-    public PaymentContext build(String userId, long totalAmount) {
-        return PaymentContext.forPointOnly(userId, totalAmount);
-    }
-
-    @Override
     public void executePayment(PaymentContext context) {
         pointAccountDomainService.deduct(context.userId(), context.pointAmount());
     }

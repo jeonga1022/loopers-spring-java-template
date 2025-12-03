@@ -59,7 +59,7 @@ class OrderFacadePaymentIntegrationTest {
         );
 
         // act
-        OrderInfo result = orderFacade.createOrder(userId, items, PaymentType.POINT_ONLY);
+        OrderInfo result = orderFacade.createOrder(userId, items, null, null);
 
         // assert
         assertThat(result.status()).isEqualTo(OrderStatus.CONFIRMED.name());
@@ -93,13 +93,13 @@ class OrderFacadePaymentIntegrationTest {
 
         // act & assert
         assertThatThrownBy(() ->
-            orderFacade.createOrder(userId, items, PaymentType.POINT_ONLY)
+            orderFacade.createOrder(userId, items, null, null)
         ).isInstanceOf(CoreException.class)
          .hasMessageContaining("포인트가 부족합니다");
     }
 
     @Test
-    @DisplayName("기존 createOrder 메서드는 포인트만 사용 (기본값)")
+    @DisplayName("카드 정보 없으면 포인트 결제 (기본값)")
     void paymentTest3() {
         // arrange
         String userId = "test-user-3";
@@ -116,7 +116,7 @@ class OrderFacadePaymentIntegrationTest {
         );
 
         // act
-        OrderInfo result = orderFacade.createOrder(userId, items);
+        OrderInfo result = orderFacade.createOrder(userId, items, null, null);
 
         // assert
         assertThat(result.status()).isEqualTo(OrderStatus.CONFIRMED.name());

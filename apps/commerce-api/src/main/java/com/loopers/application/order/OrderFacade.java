@@ -33,16 +33,25 @@ public class OrderFacade {
     private final PaymentDomainService paymentDomainService;
     private final PaymentStrategyFactory paymentStrategyFactory;
 
+    public record PaymentInfo(
+        PaymentType paymentType,
+        String cardType,
+        String cardNo
+    ) {
+    }
+
     @Transactional
-    public OrderInfo createOrder(String userId, List<OrderDto.OrderItemRequest> itemRequests) {
-        return createOrder(userId, itemRequests, PaymentType.POINT_ONLY);
+    public OrderInfo createOrder(String userId, List<OrderDto.OrderItemRequest> itemRequests, String cardType, String cardNo) {
+        PaymentType paymentType = determinePaymentType(cardType);
+        PaymentInfo paymentInfo = new PaymentInfo(paymentType, cardType, cardNo);
+        return createOrder(userId, itemRequests, paymentInfo);
     }
 
     @Transactional
     public OrderInfo createOrder(
         String userId,
         List<OrderDto.OrderItemRequest> itemRequests,
-        PaymentType paymentType
+        PaymentInfo paymentInfo
     ) {
         validateItem(itemRequests);
 
@@ -83,14 +92,24 @@ public class OrderFacade {
             order.getId(),
             userId,
             totalAmount,
-            paymentType
+            paymentInfo.paymentType()
         );
 
         // 결제 실행
         order.startPayment();
 
-        PaymentStrategy strategy = paymentStrategyFactory.create(paymentType);
-        PaymentContext context = strategy.build(userId, totalAmount);
+        PaymentContext context = PaymentContext.builder()
+            .orderId(order.getId())
+            .paymentId(payment.getId())
+            .userId(userId)
+            .totalAmount(totalAmount)
+            .pointAmount(paymentInfo.paymentType() == PaymentType.POINT_ONLY ? totalAmount : 0)
+            .cardAmount(paymentInfo.paymentType() == PaymentType.POINT_ONLY ? 0 : totalAmount)
+            .cardType(paymentInfo.cardType())
+            .cardNo(paymentInfo.cardNo())
+            .build();
+
+        PaymentStrategy strategy = paymentStrategyFactory.create(paymentInfo.paymentType());
 
         try {
             strategy.executePayment(context);
@@ -116,6 +135,13 @@ public class OrderFacade {
     public OrderInfo getOrder(String userId, Long orderId) {
         Order order = orderDomainService.getOrder(userId, orderId);
         return OrderInfo.from(order);
+    }
+
+    private PaymentType determinePaymentType(String cardType) {
+        if (cardType != null && !cardType.isBlank()) {
+            return PaymentType.CARD_ONLY;
+        }
+        return PaymentType.POINT_ONLY;
     }
 
     private static void validateItem(List<OrderDto.OrderItemRequest> itemRequests) {

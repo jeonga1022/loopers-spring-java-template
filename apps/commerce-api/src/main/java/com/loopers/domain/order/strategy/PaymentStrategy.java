@@ -6,7 +6,5 @@ public interface PaymentStrategy {
 
     boolean supports(PaymentType paymentType);
 
-    PaymentContext build(String userId, long totalAmount);
-
     void executePayment(PaymentContext context);
 }

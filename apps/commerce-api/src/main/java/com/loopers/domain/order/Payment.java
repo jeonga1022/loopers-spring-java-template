@@ -66,6 +66,19 @@ public class Payment extends BaseEntity {
     }
 
     /**
+     * PG 거래 ID 업데이트 (PG 요청 직후 저장)
+     */
+    public void updatePgTransactionId(String pgTransactionId) {
+        if (this.pgTransactionId != null) {
+            throw new CoreException(
+                    ErrorType.BAD_REQUEST,
+                    "이미 거래 ID가 설정되어 있습니다: " + this.pgTransactionId
+            );
+        }
+        this.pgTransactionId = pgTransactionId;
+    }
+
+    /**
      * 결제 성공 처리
      */
     public void markAsSuccess(String pgTransactionId) {

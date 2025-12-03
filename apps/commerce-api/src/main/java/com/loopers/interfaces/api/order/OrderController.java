@@ -25,7 +25,11 @@ public class OrderController implements OrderApiSpec {
                 .map(item -> new OrderDto.OrderItemRequest(item.productId(), item.quantity()))
                 .toList();
 
-        OrderInfo info = orderFacade.createOrder(userId, items);
+        OrderDto.CardInfo cardInfo = request.cardInfo();
+        String cardType = cardInfo != null ? cardInfo.cardType() : null;
+        String cardNo = cardInfo != null ? cardInfo.cardNo() : null;
+
+        OrderInfo info = orderFacade.createOrder(userId, items, cardType, cardNo);
 
         return ApiResponse.success(OrderDto.OrderResponse.from(info));
     }

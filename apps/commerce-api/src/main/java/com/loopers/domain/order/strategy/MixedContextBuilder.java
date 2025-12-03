@@ -19,11 +19,6 @@ public class MixedContextBuilder implements PaymentStrategy {
     }
 
     @Override
-    public PaymentContext build(String userId, long totalAmount) {
-        return PaymentContext.forMixed(userId, totalAmount, totalAmount, 0);
-    }
-
-    @Override
     public void executePayment(PaymentContext context) {
         if (context.pointAmount() > 0) {
             pointAccountDomainService.deduct(context.userId(), context.pointAmount());

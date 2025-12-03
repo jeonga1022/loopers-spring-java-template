@@ -1,5 +1,7 @@
 package com.loopers.interfaces.api.order;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.loopers.application.order.OrderInfo;
 
 import java.util.List;
@@ -7,13 +9,21 @@ import java.util.List;
 public class OrderDto {
 
     public record OrderCreateRequest(
-            List<OrderItemRequest> items
+            List<OrderItemRequest> items,
+            @JsonInclude(Include.NON_NULL)
+            CardInfo cardInfo
     ) {
     }
 
     public record OrderItemRequest(
             Long productId,
             Long quantity
+    ) {
+    }
+
+    public record CardInfo(
+            String cardType,
+            String cardNo
     ) {
     }
 

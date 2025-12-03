@@ -14,10 +14,6 @@ public class PaymentStrategyFactory {
 
     private final List<PaymentStrategy> strategies;
 
-    public PaymentContext build(PaymentType paymentType, String userId, long totalAmount) {
-        return create(paymentType).build(userId, totalAmount);
-    }
-
     public PaymentStrategy create(PaymentType paymentType) {
         return strategies.stream()
                 .filter(strategy -> strategy.supports(paymentType))
