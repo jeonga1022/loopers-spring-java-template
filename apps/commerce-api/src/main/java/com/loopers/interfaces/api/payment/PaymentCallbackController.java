@@ -1,0 +1,39 @@
+package com.loopers.interfaces.api.payment;
+
+import com.loopers.domain.order.PaymentDomainService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/payments")
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentCallbackController {
+
+    private final PaymentDomainService paymentDomainService;
+
+    @PostMapping("/callback")
+    @ResponseStatus(HttpStatus.OK)
+    public void handleCallback(@RequestBody PaymentCallbackRequest request) {
+        log.info("Payment callback received. transactionKey: {}, status: {}",
+                request.getTransactionKey(), request.getStatus());
+
+        if ("SUCCESS".equals(request.getStatus())) {
+            paymentDomainService.markAsSuccessByTransactionKey(request.getTransactionKey());
+            log.info("Payment marked as success. transactionKey: {}", request.getTransactionKey());
+        } else if ("FAILED".equals(request.getStatus())) {
+            paymentDomainService.markAsFailedByTransactionKey(
+                    request.getTransactionKey(),
+                    request.getReason()
+            );
+            log.info("Payment marked as failed. transactionKey: {}, reason: {}",
+                    request.getTransactionKey(), request.getReason());
+        }
+    }
+}
