@@ -38,6 +38,13 @@ resilience4j:
       pgTimeLimit:
         timeout-duration: 5s
         cancel-running-future: true
+  circuitbreaker:
+    instances:
+      pgCircuit:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
 
 ---
 spring:

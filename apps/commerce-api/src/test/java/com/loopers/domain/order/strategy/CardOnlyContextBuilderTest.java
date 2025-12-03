@@ -117,4 +117,56 @@ class CardOnlyContextBuilderTest {
             cardOnlyContextBuilder.executePayment(context)
         );
     }
+
+    @Test
+    @DisplayName("@CircuitBreaker 적용 시 실패율 50% 이상이면 회로 오픈")
+    void test4() {
+        // arrange
+        PaymentContext context = PaymentContext.forCardOnly(
+            ORDER_ID, PAYMENT_ID, USER_ID, CARD_AMOUNT, CARD_TYPE, CARD_NO
+        );
+
+        ReflectionTestUtils.setField(cardOnlyContextBuilder, "serverPort", 8080);
+
+        // 10번 요청해서 실패율 50% 이상 만들기
+        // 요청 1~5: 성공 (50%)
+        // 요청 6~10: 실패 (50%)
+        when(pgClient.requestPayment(eq(USER_ID), any(PgPaymentRequest.class)))
+            .thenReturn(createSuccessResponse())
+            .thenReturn(createSuccessResponse())
+            .thenReturn(createSuccessResponse())
+            .thenReturn(createSuccessResponse())
+            .thenReturn(createSuccessResponse())
+            .thenThrow(new RuntimeException("PG failure 1"))
+            .thenThrow(new RuntimeException("PG failure 2"))
+            .thenThrow(new RuntimeException("PG failure 3"))
+            .thenThrow(new RuntimeException("PG failure 4"))
+            .thenThrow(new RuntimeException("PG failure 5"));
+
+        // act - 10번 요청
+        for (int i = 0; i < 10; i++) {
+            assertThatNoException().isThrownBy(() ->
+                cardOnlyContextBuilder.executePayment(context)
+            );
+        }
+
+        // assert - 11번째 요청은 회로가 오픈되어 바로 실패해야 함
+        // (5초 이상 대기하지 않고 즉시 실패)
+        long startTime = System.currentTimeMillis();
+        assertThatNoException().isThrownBy(() ->
+            cardOnlyContextBuilder.executePayment(context)
+        );
+        long duration = System.currentTimeMillis() - startTime;
+
+        // CircuitBreaker가 오픈되면 즉시 반환 (1초 이내)
+        // TimeLimiter 타임아웃(5초)보다 훨씬 빨아야 함
+        assertThat(duration).isLessThan(1000);
+    }
+
+    private PgPaymentResponse createSuccessResponse() {
+        PgPaymentResponse response = new PgPaymentResponse();
+        ReflectionTestUtils.setField(response, "transactionKey", TRANSACTION_KEY);
+        ReflectionTestUtils.setField(response, "status", "PENDING");
+        return response;
+    }
 }

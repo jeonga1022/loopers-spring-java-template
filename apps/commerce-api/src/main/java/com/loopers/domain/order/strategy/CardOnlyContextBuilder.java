@@ -5,6 +5,7 @@ import com.loopers.domain.order.PaymentType;
 import com.loopers.infrastructure.pg.PgClient;
 import com.loopers.infrastructure.pg.dto.PgPaymentRequest;
 import com.loopers.infrastructure.pg.dto.PgPaymentResponse;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class CardOnlyContextBuilder implements PaymentStrategy {
     }
 
     @Override
+    @CircuitBreaker(name = "pgCircuit", fallbackMethod = "fallbackRequestPayment")
     @TimeLimiter(name = "pgTimeLimit", fallbackMethod = "fallbackRequestPayment")
     public void executePayment(PaymentContext context) {
         try {
