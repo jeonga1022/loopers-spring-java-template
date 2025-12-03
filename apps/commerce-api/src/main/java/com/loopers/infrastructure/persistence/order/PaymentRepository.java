@@ -29,4 +29,9 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
      * 사용자와 상태로 결제 조회
      */
     List<Payment> findByUserIdAndStatus(String userId, PaymentStatus status);
+
+    /**
+     * PG 거래 ID로 결제 조회 (콜백 처리용)
+     */
+    Optional<Payment> findByPgTransactionId(String pgTransactionId);
 }
