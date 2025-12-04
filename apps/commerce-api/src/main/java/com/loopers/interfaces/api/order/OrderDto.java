@@ -71,4 +71,16 @@ public class OrderDto {
             );
         }
     }
+
+    public record PaymentStatusResponse(
+            Long orderId,
+            String status,
+            String paymentType,
+            Long amount,
+            @JsonInclude(Include.NON_NULL)
+            String pgTransactionId,
+            @JsonInclude(Include.NON_NULL)
+            String failureReason
+    ) {
+    }
 }
