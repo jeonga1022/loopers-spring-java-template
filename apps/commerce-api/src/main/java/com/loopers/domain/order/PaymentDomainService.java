@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -43,33 +42,11 @@ public class PaymentDomainService {
     }
 
     @Transactional
-    public void markAsSuccessByOrderId(Long orderId, String pgTransactionId) {
-        Payment payment = paymentRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new CoreException(
-                        ErrorType.NOT_FOUND,
-                        "결제 정보를 찾을 수 없습니다. orderId: " + orderId
-                ));
-        payment.markAsSuccess(pgTransactionId);
-        paymentRepository.save(payment);
-    }
-
-    @Transactional
     public void markAsFailed(Long paymentId, String reason) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
                         "결제 정보를 찾을 수 없습니다. paymentId: " + paymentId
-                ));
-        payment.markAsFailed(reason);
-        paymentRepository.save(payment);
-    }
-
-    @Transactional
-    public void markAsFailedByOrderId(Long orderId, String reason) {
-        Payment payment = paymentRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new CoreException(
-                        ErrorType.NOT_FOUND,
-                        "결제 정보를 찾을 수 없습니다. orderId: " + orderId
                 ));
         payment.markAsFailed(reason);
         paymentRepository.save(payment);
@@ -85,43 +62,11 @@ public class PaymentDomainService {
     }
 
     @Transactional(readOnly = true)
-    public List<Payment> getPaymentsByUserId(String userId) {
-        return paymentRepository.findByUserId(userId);
-    }
-
-    @Transactional(readOnly = true)
-    public List<Payment> getPaymentsByUserIdAndStatus(String userId, PaymentStatus status) {
-        return paymentRepository.findByUserIdAndStatus(userId, status);
-    }
-
-    @Transactional(readOnly = true)
     public Payment getPaymentByPgTransactionId(String pgTransactionId) {
         return paymentRepository.findByPgTransactionId(pgTransactionId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
                         "결제 정보를 찾을 수 없습니다. pgTransactionId: " + pgTransactionId
                 ));
-    }
-
-    @Transactional
-    public void markAsSuccessByTransactionKey(String pgTransactionId) {
-        Payment payment = paymentRepository.findByPgTransactionId(pgTransactionId)
-                .orElseThrow(() -> new CoreException(
-                        ErrorType.NOT_FOUND,
-                        "결제 정보를 찾을 수 없습니다. pgTransactionId: " + pgTransactionId
-                ));
-        payment.markAsSuccess(pgTransactionId);
-        paymentRepository.save(payment);
-    }
-
-    @Transactional
-    public void markAsFailedByTransactionKey(String pgTransactionId, String reason) {
-        Payment payment = paymentRepository.findByPgTransactionId(pgTransactionId)
-                .orElseThrow(() -> new CoreException(
-                        ErrorType.NOT_FOUND,
-                        "결제 정보를 찾을 수 없습니다. pgTransactionId: " + pgTransactionId
-                ));
-        payment.markAsFailed(reason);
-        paymentRepository.save(payment);
     }
 }

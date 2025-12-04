@@ -70,60 +70,6 @@ public class ProductCacheService {
     }
 
     /**
-     * 상품 목록 캐시 조회
-     *
-     * @return 캐시된 상품 목록 (없으면 Optional.empty())
-     */
-    public Optional<ProductListCache> getProductList(Long brandId, String sort, int page, int size) {
-        String key = buildProductListKey(brandId, sort, page, size);
-
-        try {
-            String cached = redisTemplate.opsForValue().get(key);
-            if (cached == null) {
-                return Optional.empty();
-            }
-
-            return Optional.of(objectMapper.readValue(cached, ProductListCache.class));
-
-        } catch (Exception e) {
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * 상품 목록 캐시 저장
-     *
-     * @param brandId 브랜드 ID (null 가능)
-     * @param sort    정렬 기준
-     * @param page    페이지 번호
-     * @param size    페이지 크기
-     * @param cache   캐싱할 데이터
-     */
-    public void setProductList(Long brandId, String sort, int page, int size, ProductListCache cache) {
-        String key = buildProductListKey(brandId, sort, page, size);
-
-        try {
-            String value = objectMapper.writeValueAsString(cache);
-            redisTemplate.opsForValue().set(key, value, CACHE_TTL);
-
-        } catch (Exception e) {
-            // 캐시 저장 실패는 무시 (다음 요청에서 DB 조회)
-        }
-    }
-
-    /**
-     * 상품 목록 캐시 키 생성
-     * <p>
-     * 형식: product:list:brand:{brandId}:{sort}:page:{page}
-     * 브랜드 필터가 없으면: product:list:all:{sort}:page:{page}
-     */
-    private String buildProductListKey(Long brandId, String sort, int page, int size) {
-        String brandPart = brandId != null ? "brand:" + brandId : "all";
-        return String.format("%s%s:%s:page:%d:size:%d",
-                PRODUCT_LIST_KEY_PREFIX, brandPart, sort, page, size);
-    }
-
-    /**
      * 상품 상세 캐시 삭제 (무효화)
      * <p>
      * 상품 정보가 변경되었을 때 캐시를 즉시 삭제합니다.
