@@ -6,6 +6,8 @@ import com.loopers.domain.order.OrderRepository;
 import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.order.Payment;
 import com.loopers.domain.order.PaymentStatus;
+import com.loopers.domain.product.Product;
+import com.loopers.domain.product.ProductRepository;
 import com.loopers.infrastructure.persistence.order.PaymentRepository;
 import com.loopers.utils.DatabaseCleanUp;
 import org.junit.jupiter.api.AfterEach;
@@ -36,6 +38,9 @@ class PaymentCallbackIntegrationTest {
 
     @Autowired
     private OrderRepository orderRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
 
     @Autowired
     private DatabaseCleanUp databaseCleanUp;
@@ -85,8 +90,11 @@ class PaymentCallbackIntegrationTest {
     @Test
     @DisplayName("PG 실패 콜백을 받으면 결제 상태가 FAILED로 변경되고 Order도 FAILED로 변경된다")
     void test2() throws Exception {
-        // arrange - Order와 Payment 생성
-        OrderItem item = OrderItem.create(1L, "상품", 1L, 10000L);
+        // arrange - Product, Order, Payment 생성
+        Product product = Product.create("상품", "설명", 10000L, 100L, 1L);
+        product = productRepository.save(product);
+
+        OrderItem item = OrderItem.create(product.getId(), "상품", 1L, 10000L);
         Order order = Order.create("user1", List.of(item), 10000L);
         order.startPayment();  // PAYING 상태로 변경
         order = orderRepository.save(order);

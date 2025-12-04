@@ -82,18 +82,6 @@ class OrderTest {
                     .hasMessageContaining("PAYING 상태에서만 확정할 수 있습니다");
         }
 
-        @Test
-        @DisplayName("CONFIRMED 상태에서 confirm 호출 시 예외 발생")
-        void test4() {
-            OrderItem item = OrderItem.create(PRODUCT_ID_1, "상품1", 1L, 10_000);
-            Order order = Order.create(USER_ID, List.of(item), 10_000);
-            order.startPayment();
-            order.confirm();
-
-            assertThatThrownBy(order::confirm)
-                    .isInstanceOf(CoreException.class)
-                    .hasMessageContaining("PAYING 상태에서만 확정할 수 있습니다");
-        }
     }
 
     @Nested
@@ -113,6 +101,61 @@ class OrderTest {
 
             order.confirm();
             assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        }
+    }
+
+    @Nested
+    @DisplayName("Order 상태 전이 멱등성")
+    class OrderIdempotencyTest {
+
+        @Test
+        @DisplayName("CONFIRMED 상태에서 confirm 재호출 시 성공한다")
+        void confirmTest1() {
+            OrderItem item = OrderItem.create(PRODUCT_ID_1, "상품1", 1L, 10_000);
+            Order order = Order.create(USER_ID, List.of(item), 10_000);
+            order.startPayment();
+
+            order.confirm();
+            order.confirm();
+
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        }
+
+        @Test
+        @DisplayName("FAILED 상태에서 fail 재호출 시 성공한다")
+        void failTest1() {
+            OrderItem item = OrderItem.create(PRODUCT_ID_1, "상품1", 1L, 10_000);
+            Order order = Order.create(USER_ID, List.of(item), 10_000);
+            order.startPayment();
+
+            order.fail();
+            order.fail();
+
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.FAILED);
+        }
+
+        @Test
+        @DisplayName("PENDING에서 confirm 호출 시 예외")
+        void confirmTest2() {
+            OrderItem item = OrderItem.create(PRODUCT_ID_1, "상품1", 1L, 10_000);
+            Order order = Order.create(USER_ID, List.of(item), 10_000);
+
+            assertThatThrownBy(() -> order.confirm())
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("PAYING 상태에서만");
+        }
+
+        @Test
+        @DisplayName("CONFIRMED에서 fail 호출 시 예외")
+        void failTest2() {
+            OrderItem item = OrderItem.create(PRODUCT_ID_1, "상품1", 1L, 10_000);
+            Order order = Order.create(USER_ID, List.of(item), 10_000);
+            order.startPayment();
+            order.confirm();
+
+            assertThatThrownBy(() -> order.fail())
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("PAYING 상태에서만");
         }
     }
 }

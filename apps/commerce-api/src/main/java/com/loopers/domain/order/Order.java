@@ -4,10 +4,12 @@ import com.loopers.domain.BaseEntity;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import jakarta.persistence.*;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Entity
 @Table(
         name = "orders",
@@ -63,6 +65,11 @@ public class Order extends BaseEntity {
     }
 
     public void confirm() {
+        if (this.status == OrderStatus.CONFIRMED) {
+            log.warn("Order is already CONFIRMED. Idempotent operation. orderId={}", this.getId());
+            return;
+        }
+
         if (this.status != OrderStatus.PAYING) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,
@@ -73,6 +80,11 @@ public class Order extends BaseEntity {
     }
 
     public void fail() {
+        if (this.status == OrderStatus.FAILED) {
+            log.warn("Order is already FAILED. Idempotent operation. orderId={}", this.getId());
+            return;
+        }
+
         if (this.status != OrderStatus.PAYING) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,

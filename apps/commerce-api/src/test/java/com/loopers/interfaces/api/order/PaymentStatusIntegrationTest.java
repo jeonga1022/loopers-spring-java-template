@@ -59,13 +59,13 @@ class PaymentStatusIntegrationTest {
         payment = paymentRepository.save(payment);
 
         // act & assert
-        mockMvc.perform(get("/api/v1/orders/{orderId}/payment-status", order.getId())
+        mockMvc.perform(get("/api/v1/orders/{orderId}/payment", order.getId())
                         .header("X-USER-ID", "user1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.orderId", equalTo(order.getId().intValue())))
-                .andExpect(jsonPath("$.data.paymentStatus", equalTo("PENDING")))
+                .andExpect(jsonPath("$.data.status", equalTo("PENDING")))
                 .andExpect(jsonPath("$.data.paymentType", equalTo("CARD_ONLY")))
-                .andExpect(jsonPath("$.data.totalAmount", equalTo(10000)));
+                .andExpect(jsonPath("$.data.amount", equalTo(10000)));
     }
 
     @Test
@@ -83,13 +83,13 @@ class PaymentStatusIntegrationTest {
         payment = paymentRepository.save(payment);
 
         // act & assert
-        mockMvc.perform(get("/api/v1/orders/{orderId}/payment-status", order.getId())
+        mockMvc.perform(get("/api/v1/orders/{orderId}/payment", order.getId())
                         .header("X-USER-ID", "user1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.orderId", equalTo(order.getId().intValue())))
-                .andExpect(jsonPath("$.data.paymentStatus", equalTo("SUCCESS")))
+                .andExpect(jsonPath("$.data.status", equalTo("SUCCESS")))
                 .andExpect(jsonPath("$.data.paymentType", equalTo("POINT_ONLY")))
-                .andExpect(jsonPath("$.data.totalAmount", equalTo(10000)));
+                .andExpect(jsonPath("$.data.amount", equalTo(10000)));
     }
 
     @Test
@@ -107,13 +107,13 @@ class PaymentStatusIntegrationTest {
         payment = paymentRepository.save(payment);
 
         // act & assert
-        mockMvc.perform(get("/api/v1/orders/{orderId}/payment-status", order.getId())
+        mockMvc.perform(get("/api/v1/orders/{orderId}/payment", order.getId())
                         .header("X-USER-ID", "user1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.orderId", equalTo(order.getId().intValue())))
-                .andExpect(jsonPath("$.data.paymentStatus", equalTo("FAILED")))
+                .andExpect(jsonPath("$.data.status", equalTo("FAILED")))
                 .andExpect(jsonPath("$.data.paymentType", equalTo("CARD_ONLY")))
-                .andExpect(jsonPath("$.data.totalAmount", equalTo(10000)))
+                .andExpect(jsonPath("$.data.amount", equalTo(10000)))
                 .andExpect(jsonPath("$.data.failureReason", equalTo("한도 초과")));
     }
 }
