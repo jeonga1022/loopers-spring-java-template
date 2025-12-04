@@ -53,7 +53,7 @@ class CardPaymentStrategyTest {
         when(pgClient.requestPayment(eq(USER_ID), any(PgPaymentRequest.class)))
             .thenReturn(response);
 
-        ReflectionTestUtils.setField(cardPaymentStrategy, "serverPort", 8080);
+        ReflectionTestUtils.setField(cardPaymentStrategy, "callbackBaseUrl", "http://localhost:8080");
 
         cardPaymentStrategy.executePayment(context);
 
@@ -70,7 +70,7 @@ class CardPaymentStrategyTest {
         when(pgClient.requestPayment(eq(USER_ID), any(PgPaymentRequest.class)))
             .thenThrow(new RuntimeException("PG connection failed"));
 
-        ReflectionTestUtils.setField(cardPaymentStrategy, "serverPort", 8080);
+        ReflectionTestUtils.setField(cardPaymentStrategy, "callbackBaseUrl", "http://localhost:8080");
 
         assertThatNoException().isThrownBy(() ->
             cardPaymentStrategy.executePayment(context)
@@ -90,7 +90,7 @@ class CardPaymentStrategyTest {
                 return new PgPaymentResponse();
             });
 
-        ReflectionTestUtils.setField(cardPaymentStrategy, "serverPort", 8080);
+        ReflectionTestUtils.setField(cardPaymentStrategy, "callbackBaseUrl", "http://localhost:8080");
 
         assertThatNoException().isThrownBy(() ->
             cardPaymentStrategy.executePayment(context)
@@ -104,7 +104,7 @@ class CardPaymentStrategyTest {
             ORDER_ID, PAYMENT_ID, USER_ID, CARD_AMOUNT, CARD_TYPE, CARD_NO
         );
 
-        ReflectionTestUtils.setField(cardPaymentStrategy, "serverPort", 8080);
+        ReflectionTestUtils.setField(cardPaymentStrategy, "callbackBaseUrl", "http://localhost:8080");
 
         when(pgClient.requestPayment(eq(USER_ID), any(PgPaymentRequest.class)))
             .thenReturn(createSuccessResponse())

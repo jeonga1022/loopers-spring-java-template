@@ -1,6 +1,7 @@
 package com.loopers.domain.product;
 
 import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorMessage;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -67,7 +68,7 @@ public class ProductDomainService {
     @Transactional
     public void increaseStock(Long productId, Long quantity) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "상품을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, ErrorMessage.PRODUCT_NOT_FOUND));
 
         product.increaseStock(quantity);
         productRepository.save(product);
@@ -80,7 +81,7 @@ public class ProductDomainService {
         return productRepository.findByIdWithLock(productId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
-                        "해당 상품을 찾을 수 없습니다."
+                        ErrorMessage.PRODUCT_NOT_FOUND
                 ));
     }
 

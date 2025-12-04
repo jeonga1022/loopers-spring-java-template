@@ -21,8 +21,8 @@ public class CardPaymentStrategy implements PaymentStrategy {
     private final PgClient pgClient;
     private final PaymentDomainService paymentDomainService;
 
-    @Value("${server.port:8080}")
-    private int serverPort;
+    @Value("${pg.callback-base-url}")
+    private String callbackBaseUrl;
 
     @Override
     public boolean supports(PaymentType paymentType) {
@@ -40,7 +40,7 @@ public class CardPaymentStrategy implements PaymentStrategy {
                     .cardType(context.cardType())
                     .cardNo(context.cardNo())
                     .amount(context.cardAmount())
-                    .callbackUrl("http://localhost:" + serverPort + "/api/v1/payments/callback")
+                    .callbackUrl(callbackBaseUrl + "/api/v1/payments/callback")
                     .build();
 
             PgPaymentResponse response = pgClient.requestPayment(context.userId(), request);

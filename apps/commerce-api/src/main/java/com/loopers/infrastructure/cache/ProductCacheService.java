@@ -2,7 +2,7 @@ package com.loopers.infrastructure.cache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loopers.interfaces.api.product.ProductDto;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -18,18 +18,23 @@ import java.util.Set;
  * Cache-Aside 패턴을 사용합니다.
  */
 @Service
-@RequiredArgsConstructor
 public class ProductCacheService {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final Duration cacheTtl;
 
-    // 캐시 키 prefix
     private static final String PRODUCT_DETAIL_KEY_PREFIX = "product:detail:";
     private static final String PRODUCT_LIST_KEY_PREFIX = "product:list:";
 
-    // TTL 설정 (5분)
-    private static final Duration CACHE_TTL = Duration.ofMinutes(5);
+    public ProductCacheService(
+            RedisTemplate<String, String> redisTemplate,
+            ObjectMapper objectMapper,
+            @Value("${cache.product.ttl-minutes:5}") int ttlMinutes) {
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.cacheTtl = Duration.ofMinutes(ttlMinutes);
+    }
 
     /**
      * 상품 상세 캐시 조회
@@ -62,7 +67,7 @@ public class ProductCacheService {
 
         try {
             String value = objectMapper.writeValueAsString(cache);
-            redisTemplate.opsForValue().set(key, value, CACHE_TTL);
+            redisTemplate.opsForValue().set(key, value, cacheTtl);
 
         } catch (Exception e) {
             // 캐시 저장 실패는 무시 (다음 요청에서 DB 조회)
@@ -133,7 +138,7 @@ public class ProductCacheService {
 
         try {
             String value = objectMapper.writeValueAsString(response);
-            redisTemplate.opsForValue().set(key, value, CACHE_TTL);
+            redisTemplate.opsForValue().set(key, value, cacheTtl);
 
         } catch (Exception e) {
             // 캐시 저장 실패는 무시

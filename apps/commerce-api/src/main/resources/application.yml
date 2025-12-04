@@ -31,6 +31,13 @@ springdoc:
 
 pg:
   base-url: http://localhost:8082
+  callback-base-url: http://localhost:8080
+  connect-timeout-ms: 1000
+  read-timeout-ms: 3000
+
+cache:
+  product:
+    ttl-minutes: 5
 
 resilience4j:
   timelimiter:

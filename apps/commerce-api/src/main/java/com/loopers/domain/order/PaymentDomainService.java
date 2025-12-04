@@ -1,6 +1,7 @@
 package com.loopers.domain.order;
 
 import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorMessage;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,7 @@ public class PaymentDomainService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
-                        "결제 정보를 찾을 수 없습니다. paymentId: " + paymentId
+                        ErrorMessage.PAYMENT_NOT_FOUND + " paymentId: " + paymentId
                 ));
         payment.updatePgTransactionId(pgTransactionId);
         paymentRepository.save(payment);
@@ -35,7 +36,7 @@ public class PaymentDomainService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
-                        "결제 정보를 찾을 수 없습니다. paymentId: " + paymentId
+                        ErrorMessage.PAYMENT_NOT_FOUND + " paymentId: " + paymentId
                 ));
         payment.markAsSuccess(pgTransactionId);
         paymentRepository.save(payment);
@@ -46,7 +47,7 @@ public class PaymentDomainService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
-                        "결제 정보를 찾을 수 없습니다. paymentId: " + paymentId
+                        ErrorMessage.PAYMENT_NOT_FOUND + " paymentId: " + paymentId
                 ));
         payment.markAsFailed(reason);
         paymentRepository.save(payment);
@@ -57,7 +58,7 @@ public class PaymentDomainService {
         return paymentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
-                        "결제 정보를 찾을 수 없습니다. orderId: " + orderId
+                        ErrorMessage.PAYMENT_NOT_FOUND + " orderId: " + orderId
                 ));
     }
 
@@ -66,7 +67,7 @@ public class PaymentDomainService {
         return paymentRepository.findByPgTransactionId(pgTransactionId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
-                        "결제 정보를 찾을 수 없습니다. pgTransactionId: " + pgTransactionId
+                        ErrorMessage.PAYMENT_NOT_FOUND + " pgTransactionId: " + pgTransactionId
                 ));
     }
 }
