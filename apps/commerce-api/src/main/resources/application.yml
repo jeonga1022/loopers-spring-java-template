@@ -43,6 +43,8 @@ resilience4j:
       pgCircuit:
         sliding-window-size: 10
         failure-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        slow-call-rate-threshold: 50
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 2
 
