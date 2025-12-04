@@ -1,5 +1,9 @@
 package com.loopers.interfaces.api.payment;
 
+import com.loopers.domain.order.Order;
+import com.loopers.domain.order.OrderItem;
+import com.loopers.domain.order.OrderRepository;
+import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.order.Payment;
 import com.loopers.domain.order.PaymentStatus;
 import com.loopers.infrastructure.persistence.order.PaymentRepository;
@@ -12,6 +16,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -29,6 +35,9 @@ class PaymentCallbackIntegrationTest {
     private PaymentRepository paymentRepository;
 
     @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
     private DatabaseCleanUp databaseCleanUp;
 
     private static final String TRANSACTION_KEY = "20250816:TR:9577c5";
@@ -39,12 +48,17 @@ class PaymentCallbackIntegrationTest {
     }
 
     @Test
-    @DisplayName("PG 성공 콜백을 받으면 결제 상태가 SUCCESS로 변경된다")
+    @DisplayName("PG 성공 콜백을 받으면 결제 상태가 SUCCESS로 변경되고 Order도 CONFIRMED로 변경된다")
     void test1() throws Exception {
-        // arrange - 결제 데이터 먼저 생성
-        Payment payment = Payment.create(1L, "user1", 10000L, com.loopers.domain.order.PaymentType.CARD_ONLY);
+        // arrange - Order와 Payment 생성
+        OrderItem item = OrderItem.create(1L, "상품", 1L, 10000L);
+        Order order = Order.create("user1", List.of(item), 10000L);
+        order.startPayment();  // PAYING 상태로 변경
+        order = orderRepository.save(order);
+
+        Payment payment = Payment.create(order.getId(), "user1", 10000L, com.loopers.domain.order.PaymentType.CARD_ONLY);
         payment.updatePgTransactionId(TRANSACTION_KEY);
-        paymentRepository.save(payment);
+        payment = paymentRepository.save(payment);
 
         String requestBody = """
                 {
@@ -60,18 +74,26 @@ class PaymentCallbackIntegrationTest {
                         .content(requestBody))
                 .andExpect(status().isOk());
 
-        // assert - 실제 데이터베이스에서 조회해서 검증
+        // assert - Payment와 Order 모두 확인
         Payment savedPayment = paymentRepository.findByPgTransactionId(TRANSACTION_KEY).orElseThrow();
         assertThat(savedPayment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+
+        Order savedOrder = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
     }
 
     @Test
-    @DisplayName("PG 실패 콜백을 받으면 결제 상태가 FAILED로 변경되고 실패 사유가 저장된다")
+    @DisplayName("PG 실패 콜백을 받으면 결제 상태가 FAILED로 변경되고 Order도 FAILED로 변경된다")
     void test2() throws Exception {
-        // arrange
-        Payment payment = Payment.create(1L, "user1", 10000L, com.loopers.domain.order.PaymentType.CARD_ONLY);
+        // arrange - Order와 Payment 생성
+        OrderItem item = OrderItem.create(1L, "상품", 1L, 10000L);
+        Order order = Order.create("user1", List.of(item), 10000L);
+        order.startPayment();  // PAYING 상태로 변경
+        order = orderRepository.save(order);
+
+        Payment payment = Payment.create(order.getId(), "user1", 10000L, com.loopers.domain.order.PaymentType.CARD_ONLY);
         payment.updatePgTransactionId(TRANSACTION_KEY);
-        paymentRepository.save(payment);
+        payment = paymentRepository.save(payment);
 
         String requestBody = """
                 {
@@ -87,9 +109,12 @@ class PaymentCallbackIntegrationTest {
                         .content(requestBody))
                 .andExpect(status().isOk());
 
-        // assert
+        // assert - Payment와 Order 모두 확인
         Payment savedPayment = paymentRepository.findByPgTransactionId(TRANSACTION_KEY).orElseThrow();
         assertThat(savedPayment.getStatus()).isEqualTo(PaymentStatus.FAILED);
         assertThat(savedPayment.getFailureReason()).isEqualTo("한도 초과");
+
+        Order savedOrder = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.FAILED);
     }
 }

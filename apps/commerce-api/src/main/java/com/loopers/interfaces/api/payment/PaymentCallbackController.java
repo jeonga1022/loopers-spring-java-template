@@ -1,6 +1,6 @@
 package com.loopers.interfaces.api.payment;
 
-import com.loopers.domain.order.PaymentDomainService;
+import com.loopers.application.payment.PaymentFacade;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class PaymentCallbackController {
 
-    private final PaymentDomainService paymentDomainService;
+    private final PaymentFacade paymentFacade;
 
     @PostMapping("/callback")
     @ResponseStatus(HttpStatus.OK)
@@ -25,15 +25,9 @@ public class PaymentCallbackController {
                 request.getTransactionKey(), request.getStatus());
 
         if ("SUCCESS".equals(request.getStatus())) {
-            paymentDomainService.markAsSuccessByTransactionKey(request.getTransactionKey());
-            log.info("Payment marked as success. transactionKey: {}", request.getTransactionKey());
+            paymentFacade.completePaymentByCallback(request.getTransactionKey());
         } else if ("FAILED".equals(request.getStatus())) {
-            paymentDomainService.markAsFailedByTransactionKey(
-                    request.getTransactionKey(),
-                    request.getReason()
-            );
-            log.info("Payment marked as failed. transactionKey: {}, reason: {}",
-                    request.getTransactionKey(), request.getReason());
+            paymentFacade.failPaymentByCallback(request.getTransactionKey(), request.getReason());
         }
     }
 }

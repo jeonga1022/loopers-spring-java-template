@@ -72,6 +72,16 @@ public class Order extends BaseEntity {
         this.status = OrderStatus.CONFIRMED;
     }
 
+    public void fail() {
+        if (this.status != OrderStatus.PAYING) {
+            throw new CoreException(
+                    ErrorType.BAD_REQUEST,
+                    "PAYING 상태에서만 실패 처리할 수 있습니다."
+            );
+        }
+        this.status = OrderStatus.FAILED;
+    }
+
     public String getUserId() {
         return userId;
     }

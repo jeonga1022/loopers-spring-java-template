@@ -95,6 +95,15 @@ public class PaymentDomainService {
         return paymentRepository.findByUserIdAndStatus(userId, status);
     }
 
+    @Transactional(readOnly = true)
+    public Payment getPaymentByPgTransactionId(String pgTransactionId) {
+        return paymentRepository.findByPgTransactionId(pgTransactionId)
+                .orElseThrow(() -> new CoreException(
+                        ErrorType.NOT_FOUND,
+                        "결제 정보를 찾을 수 없습니다. pgTransactionId: " + pgTransactionId
+                ));
+    }
+
     @Transactional
     public void markAsSuccessByTransactionKey(String pgTransactionId) {
         Payment payment = paymentRepository.findByPgTransactionId(pgTransactionId)

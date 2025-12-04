@@ -42,4 +42,16 @@ public class OrderDomainService {
 
         return order;
     }
+
+    @Transactional
+    public void confirmOrder(String userId, Long orderId) {
+        Order order = getOrder(userId, orderId);
+        order.confirm();
+    }
+
+    @Transactional
+    public void failOrder(String userId, Long orderId) {
+        Order order = getOrder(userId, orderId);
+        order.fail();
+    }
 }

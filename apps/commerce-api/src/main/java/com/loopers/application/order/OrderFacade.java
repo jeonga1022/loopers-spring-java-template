@@ -110,15 +110,16 @@ public class OrderFacade {
             .build();
 
         PaymentStrategy strategy = paymentStrategyFactory.create(paymentInfo.paymentType());
+        strategy.executePayment(context);
 
-        try {
-            strategy.executePayment(context);
-            payment.markAsSuccess("internal-payment");
+        // 포인트 결제는 동기 처리 (즉시 완료)
+        if (paymentInfo.paymentType() == PaymentType.POINT_ONLY) {
             order.confirm();
-        } catch (CoreException e) {
-            payment.markAsFailed(e.getMessage());
-            throw e;
+            paymentDomainService.markAsSuccess(payment.getId(), "internal-payment");
         }
+        // 카드 결제는 비동기 처리 (콜백 대기)
+        // Order는 PAYING 상태 유지
+        // Payment는 PENDING 상태 유지
 
         return OrderInfo.from(order);
     }
