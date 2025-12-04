@@ -1,6 +1,5 @@
 package com.loopers.domain.order;
 
-import com.loopers.infrastructure.persistence.order.PaymentRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

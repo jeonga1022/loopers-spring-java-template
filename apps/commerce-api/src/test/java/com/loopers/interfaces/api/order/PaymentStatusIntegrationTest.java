@@ -7,7 +7,7 @@ import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.order.Payment;
 import com.loopers.domain.order.PaymentStatus;
 import com.loopers.domain.order.PaymentType;
-import com.loopers.infrastructure.persistence.order.PaymentRepository;
+import com.loopers.domain.order.PaymentRepository;
 import com.loopers.utils.DatabaseCleanUp;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
