@@ -47,6 +47,15 @@ resilience4j:
         slow-call-rate-threshold: 50
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 2
+  retry:
+    instances:
+      pgRetry:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.net.SocketTimeoutException
+          - feign.RetryableException
+          - java.io.IOException
 
 ---
 spring:
