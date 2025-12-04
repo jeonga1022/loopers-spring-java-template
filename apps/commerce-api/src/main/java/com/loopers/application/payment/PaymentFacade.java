@@ -6,6 +6,7 @@ import com.loopers.domain.order.Payment;
 import com.loopers.domain.order.PaymentDomainService;
 import com.loopers.domain.order.PaymentStatus;
 import com.loopers.infrastructure.pg.PgClient;
+import com.loopers.infrastructure.pg.PgStatus;
 import com.loopers.infrastructure.pg.dto.PgTransactionDetail;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -69,17 +70,17 @@ public class PaymentFacade {
             log.info("Syncing payment status with PG. pgTransactionId: {}", payment.getPgTransactionId());
             PgTransactionDetail detail = fetchPgTransactionWithRetry(userId, payment.getPgTransactionId());
 
-            // PG 상태에 따라 Payment 업데이트
-            if ("SUCCESS".equals(detail.getStatus())) {
+            PgStatus pgStatus = PgStatus.from(detail.getStatus());
+
+            if (pgStatus.isSuccess()) {
                 paymentDomainService.markAsSuccess(payment.getId(), payment.getPgTransactionId());
                 orderDomainService.confirmOrder(userId, orderId);
                 log.info("Payment synced to SUCCESS. orderId: {}", orderId);
-            } else if ("FAILED".equals(detail.getStatus())) {
+            } else if (pgStatus.isFailed()) {
                 paymentDomainService.markAsFailed(payment.getId(), detail.getReason());
                 orderFacade.handlePaymentFailure(userId, orderId);
                 log.info("Payment synced to FAILED with stock recovery. orderId: {}", orderId);
             }
-            // PENDING이면 아무것도 하지 않음
 
             return paymentDomainService.getPaymentByOrderId(orderId);
         } catch (Exception e) {

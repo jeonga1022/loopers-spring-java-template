@@ -1,6 +1,7 @@
 package com.loopers.interfaces.api.payment;
 
 import com.loopers.application.payment.PaymentFacade;
+import com.loopers.infrastructure.pg.PgStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -24,9 +25,11 @@ public class PaymentCallbackController {
         log.info("Payment callback received. transactionKey: {}, status: {}",
                 request.getTransactionKey(), request.getStatus());
 
-        if ("SUCCESS".equals(request.getStatus())) {
+        PgStatus pgStatus = PgStatus.from(request.getStatus());
+
+        if (pgStatus.isSuccess()) {
             paymentFacade.completePaymentByCallback(request.getTransactionKey());
-        } else if ("FAILED".equals(request.getStatus())) {
+        } else if (pgStatus.isFailed()) {
             paymentFacade.failPaymentByCallback(request.getTransactionKey(), request.getReason());
         }
     }
