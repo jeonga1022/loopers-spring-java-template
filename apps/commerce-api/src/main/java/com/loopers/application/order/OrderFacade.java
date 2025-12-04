@@ -18,6 +18,8 @@ import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -98,28 +100,49 @@ public class OrderFacade {
         // 결제 실행
         order.startPayment();
 
-        PaymentContext context = PaymentContext.builder()
-            .orderId(order.getId())
-            .paymentId(payment.getId())
-            .userId(userId)
-            .totalAmount(totalAmount)
-            .pointAmount(paymentInfo.paymentType() == PaymentType.POINT_ONLY ? totalAmount : 0)
-            .cardAmount(paymentInfo.paymentType() == PaymentType.POINT_ONLY ? 0 : totalAmount)
-            .cardType(paymentInfo.cardType())
-            .cardNo(paymentInfo.cardNo())
-            .build();
-
-        PaymentStrategy strategy = paymentStrategyFactory.create(paymentInfo.paymentType());
-        strategy.executePayment(context);
-
-        // 포인트 결제는 동기 처리 (즉시 완료)
+        // 포인트 결제는 동기 처리 (트랜잭션 내에서 즉시 완료)
         if (paymentInfo.paymentType() == PaymentType.POINT_ONLY) {
+            PaymentContext context = PaymentContext.builder()
+                .orderId(order.getId())
+                .paymentId(payment.getId())
+                .userId(userId)
+                .totalAmount(totalAmount)
+                .pointAmount(totalAmount)
+                .cardAmount(0)
+                .cardType(paymentInfo.cardType())
+                .cardNo(paymentInfo.cardNo())
+                .build();
+
+            PaymentStrategy strategy = paymentStrategyFactory.create(paymentInfo.paymentType());
+            strategy.executePayment(context);
+
             order.confirm();
             paymentDomainService.markAsSuccess(payment.getId(), "internal-payment");
+        } else {
+            // 카드 결제는 트랜잭션 커밋 후 비동기 실행
+            Long orderId = order.getId();
+            Long paymentId = payment.getId();
+            long finalTotalAmount = totalAmount;
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    PaymentContext context = PaymentContext.builder()
+                        .orderId(orderId)
+                        .paymentId(paymentId)
+                        .userId(userId)
+                        .totalAmount(finalTotalAmount)
+                        .pointAmount(0)
+                        .cardAmount(finalTotalAmount)
+                        .cardType(paymentInfo.cardType())
+                        .cardNo(paymentInfo.cardNo())
+                        .build();
+
+                    PaymentStrategy strategy = paymentStrategyFactory.create(paymentInfo.paymentType());
+                    strategy.executePayment(context);
+                }
+            });
         }
-        // 카드 결제는 비동기 처리 (콜백 대기)
-        // Order는 PAYING 상태 유지
-        // Payment는 PENDING 상태 유지
 
         return OrderInfo.from(order);
     }

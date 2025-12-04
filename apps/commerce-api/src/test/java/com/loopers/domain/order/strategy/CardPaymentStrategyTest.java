@@ -4,16 +4,16 @@ import com.loopers.domain.order.PaymentDomainService;
 import com.loopers.infrastructure.pg.PgClient;
 import com.loopers.infrastructure.pg.dto.PgPaymentRequest;
 import com.loopers.infrastructure.pg.dto.PgPaymentResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -28,7 +28,6 @@ class CardPaymentStrategyTest {
     @Mock
     private PaymentDomainService paymentDomainService;
 
-    @InjectMocks
     private CardPaymentStrategy cardPaymentStrategy;
 
     private static final Long ORDER_ID = 1L;
@@ -39,6 +38,12 @@ class CardPaymentStrategyTest {
     private static final String CARD_NO = "1234-5678-9814-1451";
     private static final String TRANSACTION_KEY = "20250816:TR:9577c5";
 
+    @BeforeEach
+    void setUp() {
+        cardPaymentStrategy = new CardPaymentStrategy(pgClient, paymentDomainService);
+        ReflectionTestUtils.setField(cardPaymentStrategy, "callbackBaseUrl", "http://localhost:8080");
+    }
+
     @Test
     @DisplayName("카드 결제 요청 성공 시 PG 거래 ID 저장")
     void test1() {
@@ -46,14 +51,10 @@ class CardPaymentStrategyTest {
             ORDER_ID, PAYMENT_ID, USER_ID, CARD_AMOUNT, CARD_TYPE, CARD_NO
         );
 
-        PgPaymentResponse response = new PgPaymentResponse();
-        ReflectionTestUtils.setField(response, "transactionKey", TRANSACTION_KEY);
-        ReflectionTestUtils.setField(response, "status", "PENDING");
+        PgPaymentResponse response = createSuccessResponse();
 
         when(pgClient.requestPayment(eq(USER_ID), any(PgPaymentRequest.class)))
             .thenReturn(response);
-
-        ReflectionTestUtils.setField(cardPaymentStrategy, "callbackBaseUrl", "http://localhost:8080");
 
         cardPaymentStrategy.executePayment(context);
 
@@ -61,7 +62,7 @@ class CardPaymentStrategyTest {
     }
 
     @Test
-    @DisplayName("PG 요청 실패 시 예외 발생하지 않고 정상 반환 (비동기 처리 준비)")
+    @DisplayName("PG 요청 실패 시 예외가 발생하여 Retry/CircuitBreaker가 처리할 수 있음")
     void test2() {
         PaymentContext context = PaymentContext.forCardOnly(
             ORDER_ID, PAYMENT_ID, USER_ID, CARD_AMOUNT, CARD_TYPE, CARD_NO
@@ -70,73 +71,50 @@ class CardPaymentStrategyTest {
         when(pgClient.requestPayment(eq(USER_ID), any(PgPaymentRequest.class)))
             .thenThrow(new RuntimeException("PG connection failed"));
 
-        ReflectionTestUtils.setField(cardPaymentStrategy, "callbackBaseUrl", "http://localhost:8080");
-
-        assertThatNoException().isThrownBy(() ->
-            cardPaymentStrategy.executePayment(context)
-        );
+        assertThatThrownBy(() -> cardPaymentStrategy.executePayment(context))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("PG connection failed");
     }
 
     @Test
-    @DisplayName("TimeLimiter 타임아웃 초과 시에도 예외 발생하지 않음")
+    @DisplayName("PG 응답이 느려도 정상 처리됨 (타임아웃은 Feign 레벨에서 처리)")
     void test3() {
         PaymentContext context = PaymentContext.forCardOnly(
             ORDER_ID, PAYMENT_ID, USER_ID, CARD_AMOUNT, CARD_TYPE, CARD_NO
         );
 
+        PgPaymentResponse response = createSuccessResponse();
         when(pgClient.requestPayment(eq(USER_ID), any(PgPaymentRequest.class)))
-            .thenAnswer(invocation -> {
-                Thread.sleep(6000);
-                return new PgPaymentResponse();
-            });
-
-        ReflectionTestUtils.setField(cardPaymentStrategy, "callbackBaseUrl", "http://localhost:8080");
+            .thenReturn(response);
 
         assertThatNoException().isThrownBy(() ->
             cardPaymentStrategy.executePayment(context)
         );
+
+        verify(paymentDomainService).updatePgTransactionId(PAYMENT_ID, TRANSACTION_KEY);
     }
 
     @Test
-    @DisplayName("CircuitBreaker 실패율 50% 초과 시 회로 오픈")
+    @DisplayName("연속 PG 실패 시 예외가 발생하여 CircuitBreaker가 처리 가능")
     void test4() {
         PaymentContext context = PaymentContext.forCardOnly(
             ORDER_ID, PAYMENT_ID, USER_ID, CARD_AMOUNT, CARD_TYPE, CARD_NO
         );
 
-        ReflectionTestUtils.setField(cardPaymentStrategy, "callbackBaseUrl", "http://localhost:8080");
-
         when(pgClient.requestPayment(eq(USER_ID), any(PgPaymentRequest.class)))
-            .thenReturn(createSuccessResponse())
-            .thenReturn(createSuccessResponse())
-            .thenReturn(createSuccessResponse())
-            .thenReturn(createSuccessResponse())
-            .thenReturn(createSuccessResponse())
-            .thenThrow(new RuntimeException("PG failure 1"))
-            .thenThrow(new RuntimeException("PG failure 2"))
-            .thenThrow(new RuntimeException("PG failure 3"))
-            .thenThrow(new RuntimeException("PG failure 4"))
-            .thenThrow(new RuntimeException("PG failure 5"));
+            .thenThrow(new RuntimeException("PG failure"));
 
-        for (int i = 0; i < 10; i++) {
-            assertThatNoException().isThrownBy(() ->
-                cardPaymentStrategy.executePayment(context)
-            );
-        }
-
-        long startTime = System.currentTimeMillis();
-        assertThatNoException().isThrownBy(() ->
-            cardPaymentStrategy.executePayment(context)
-        );
-        long duration = System.currentTimeMillis() - startTime;
-
-        assertThat(duration).isLessThan(1000);
+        assertThatThrownBy(() -> cardPaymentStrategy.executePayment(context))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("PG failure");
     }
 
     private PgPaymentResponse createSuccessResponse() {
         PgPaymentResponse response = new PgPaymentResponse();
-        ReflectionTestUtils.setField(response, "transactionKey", TRANSACTION_KEY);
-        ReflectionTestUtils.setField(response, "status", "PENDING");
+        PgPaymentResponse.PgPaymentData data = new PgPaymentResponse.PgPaymentData();
+        ReflectionTestUtils.setField(data, "transactionKey", TRANSACTION_KEY);
+        ReflectionTestUtils.setField(data, "status", "PENDING");
+        ReflectionTestUtils.setField(response, "data", data);
         return response;
     }
 }

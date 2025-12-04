@@ -5,6 +5,7 @@ import com.loopers.support.error.ErrorMessage;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 
@@ -20,7 +21,7 @@ public class PaymentDomainService {
         return paymentRepository.save(payment);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updatePgTransactionId(Long paymentId, String pgTransactionId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new CoreException(

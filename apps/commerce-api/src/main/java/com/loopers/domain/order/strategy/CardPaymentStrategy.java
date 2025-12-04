@@ -7,7 +7,6 @@ import com.loopers.infrastructure.pg.dto.PgPaymentRequest;
 import com.loopers.infrastructure.pg.dto.PgPaymentResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,23 +31,17 @@ public class CardPaymentStrategy implements PaymentStrategy {
     @Override
     @Retry(name = "pgRetry")
     @CircuitBreaker(name = "pgCircuit", fallbackMethod = "fallbackRequestPayment")
-    @TimeLimiter(name = "pgTimeLimit", fallbackMethod = "fallbackRequestPayment")
     public void executePayment(PaymentContext context) {
-        try {
-            PgPaymentRequest request = PgPaymentRequest.builder()
-                    .orderId(context.orderId().toString())
-                    .cardType(context.cardType())
-                    .cardNo(context.cardNo())
-                    .amount(context.cardAmount())
-                    .callbackUrl(callbackBaseUrl + "/api/v1/payments/callback")
-                    .build();
+        PgPaymentRequest request = PgPaymentRequest.builder()
+                .orderId(String.format("%06d", context.orderId()))
+                .cardType(context.cardType())
+                .cardNo(context.cardNo())
+                .amount(context.cardAmount())
+                .callbackUrl(callbackBaseUrl + "/api/v1/payments/callback")
+                .build();
 
-            PgPaymentResponse response = pgClient.requestPayment(context.userId(), request);
-            paymentDomainService.updatePgTransactionId(context.paymentId(), response.getTransactionKey());
-        } catch (Exception e) {
-            log.warn("PG request failed for orderId: {}, paymentId: {}. Treating as async (PENDING)",
-                    context.orderId(), context.paymentId(), e);
-        }
+        PgPaymentResponse response = pgClient.requestPayment(context.userId(), request);
+        paymentDomainService.updatePgTransactionId(context.paymentId(), response.getTransactionKey());
     }
 
     public void fallbackRequestPayment(PaymentContext context, Throwable throwable) {

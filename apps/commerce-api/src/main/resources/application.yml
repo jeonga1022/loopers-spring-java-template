@@ -40,12 +40,8 @@ cache:
     ttl-minutes: 5
 
 resilience4j:
-  timelimiter:
-    instances:
-      pgTimeLimit:
-        timeout-duration: 5s
-        cancel-running-future: true
   circuitbreaker:
+    circuitBreakerAspectOrder: 1
     instances:
       pgCircuit:
         sliding-window-size: 10
@@ -55,6 +51,7 @@ resilience4j:
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 2
   retry:
+    retryAspectOrder: 2
     instances:
       pgRetry:
         max-attempts: 3
@@ -63,6 +60,7 @@ resilience4j:
           - java.net.SocketTimeoutException
           - feign.RetryableException
           - java.io.IOException
+          - feign.FeignException$InternalServerError
 
 ---
 spring:
