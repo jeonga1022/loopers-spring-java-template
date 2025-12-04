@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class PointOnlyContextBuilder implements PaymentStrategy {
+public class PointPaymentStrategy implements PaymentStrategy {
 
     private final PointAccountDomainService pointAccountDomainService;
 

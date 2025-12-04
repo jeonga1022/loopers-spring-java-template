@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class CardOnlyContextBuilder implements PaymentStrategy {
+public class CardPaymentStrategy implements PaymentStrategy {
 
     private final PgClient pgClient;
     private final PaymentDomainService paymentDomainService;
@@ -48,15 +48,11 @@ public class CardOnlyContextBuilder implements PaymentStrategy {
         } catch (Exception e) {
             log.warn("PG request failed for orderId: {}, paymentId: {}. Treating as async (PENDING)",
                     context.orderId(), context.paymentId(), e);
-            // Fallback: Payment 상태는 이미 PENDING으로 저장되어 있으므로
-            // 예외를 catch하고 정상 반환. 나중에 콜백으로 결과를 받음.
         }
     }
 
     public void fallbackRequestPayment(PaymentContext context, Throwable throwable) {
         log.warn("PG request timeout/failure fallback. orderId: {}, paymentId: {}, reason: {}",
                 context.orderId(), context.paymentId(), throwable.getClass().getSimpleName());
-        // Payment 상태는 이미 PENDING으로 저장되어 있음
-        // Fallback에서 추가 처리 불필요
     }
 }
