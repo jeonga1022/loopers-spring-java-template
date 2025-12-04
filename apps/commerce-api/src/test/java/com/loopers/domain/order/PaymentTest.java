@@ -157,4 +157,56 @@ class PaymentTest {
             assertThat(payment.getPaymentType()).isEqualTo(PaymentType.MIXED);
         }
     }
+
+    @Nested
+    @DisplayName("Payment pgTransactionId 관리")
+    class PgTransactionIdTest {
+
+        @Test
+        @DisplayName("updatePgTransactionId로 거래 ID 설정 후, markAsSuccess에서 같은 값 전달 시 성공")
+        void test1() {
+            Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.CARD_ONLY);
+
+            payment.updatePgTransactionId("TX-12345");
+            payment.markAsSuccess("TX-12345");
+
+            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+            assertThat(payment.getPgTransactionId()).isEqualTo("TX-12345");
+        }
+
+        @Test
+        @DisplayName("updatePgTransactionId로 거래 ID 설정 후, markAsSuccess에서 다른 값 전달 시 예외")
+        void test2() {
+            Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.CARD_ONLY);
+
+            payment.updatePgTransactionId("TX-12345");
+
+            assertThatThrownBy(() -> payment.markAsSuccess("TX-99999"))
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("거래 ID가 일치하지 않습니다");
+        }
+
+        @Test
+        @DisplayName("pgTransactionId가 null일 때 markAsSuccess로 설정 가능")
+        void test3() {
+            Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.CARD_ONLY);
+
+            payment.markAsSuccess("TX-12345");
+
+            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+            assertThat(payment.getPgTransactionId()).isEqualTo("TX-12345");
+        }
+
+        @Test
+        @DisplayName("updatePgTransactionId 중복 호출 시 예외")
+        void test4() {
+            Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.CARD_ONLY);
+
+            payment.updatePgTransactionId("TX-12345");
+
+            assertThatThrownBy(() -> payment.updatePgTransactionId("TX-99999"))
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("이미 거래 ID가 설정되어 있습니다");
+        }
+    }
 }

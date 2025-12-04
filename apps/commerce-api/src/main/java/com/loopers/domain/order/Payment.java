@@ -88,8 +88,17 @@ public class Payment extends BaseEntity {
                     "PENDING 상태에서만 성공 처리할 수 있습니다. 현재 상태: " + this.status
             );
         }
+
+        if (this.pgTransactionId == null) {
+            this.pgTransactionId = pgTransactionId;
+        } else if (!this.pgTransactionId.equals(pgTransactionId)) {
+            throw new CoreException(
+                    ErrorType.BAD_REQUEST,
+                    "거래 ID가 일치하지 않습니다. expected: " + this.pgTransactionId + ", actual: " + pgTransactionId
+            );
+        }
+
         this.status = PaymentStatus.SUCCESS;
-        this.pgTransactionId = pgTransactionId;
     }
 
     /**
