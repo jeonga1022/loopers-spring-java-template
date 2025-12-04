@@ -1,5 +1,6 @@
 package com.loopers.application.payment;
 
+import com.loopers.application.order.OrderFacade;
 import com.loopers.domain.order.OrderDomainService;
 import com.loopers.domain.order.Payment;
 import com.loopers.domain.order.PaymentDomainService;
@@ -19,6 +20,7 @@ public class PaymentFacade {
     private final PaymentDomainService paymentDomainService;
     private final OrderDomainService orderDomainService;
     private final PgClient pgClient;
+    private final OrderFacade orderFacade;
 
     @Transactional
     public void completePaymentByCallback(String pgTransactionId) {
@@ -39,14 +41,12 @@ public class PaymentFacade {
         log.info("Failing payment by callback. pgTransactionId: {}, reason: {}",
                 pgTransactionId, reason);
 
-        // Payment 실패
         Payment payment = paymentDomainService.getPaymentByPgTransactionId(pgTransactionId);
         paymentDomainService.markAsFailed(payment.getId(), reason);
 
-        // Order 실패
-        orderDomainService.failOrder(payment.getUserId(), payment.getOrderId());
+        orderFacade.handlePaymentFailure(payment.getUserId(), payment.getOrderId());
 
-        log.info("Payment and Order failed. orderId: {}", payment.getOrderId());
+        log.info("Payment and Order failed with stock recovery. orderId: {}", payment.getOrderId());
     }
 
     @Transactional(readOnly = true)
@@ -75,8 +75,8 @@ public class PaymentFacade {
                 log.info("Payment synced to SUCCESS. orderId: {}", orderId);
             } else if ("FAILED".equals(detail.getStatus())) {
                 paymentDomainService.markAsFailed(payment.getId(), detail.getReason());
-                orderDomainService.failOrder(userId, orderId);
-                log.info("Payment synced to FAILED. orderId: {}", orderId);
+                orderFacade.handlePaymentFailure(userId, orderId);
+                log.info("Payment synced to FAILED with stock recovery. orderId: {}", orderId);
             }
             // PENDING이면 아무것도 하지 않음
 

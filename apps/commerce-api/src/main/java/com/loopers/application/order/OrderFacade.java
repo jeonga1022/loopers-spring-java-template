@@ -145,6 +145,21 @@ public class OrderFacade {
         return PaymentType.POINT_ONLY;
     }
 
+    @Transactional
+    public void handlePaymentFailure(String userId, Long orderId) {
+        Order order = orderDomainService.getOrder(userId, orderId);
+
+        List<OrderItem> items = new ArrayList<>(order.getOrderItems());
+        items.sort(Comparator.comparing(OrderItem::getProductId).reversed());
+
+        for (OrderItem item : items) {
+            productDomainService.increaseStock(item.getProductId(), item.getQuantity());
+            productCacheService.deleteProductDetail(item.getProductId());
+        }
+
+        order.fail();
+    }
+
     private static void validateItem(List<OrderDto.OrderItemRequest> itemRequests) {
         if (itemRequests == null || itemRequests.isEmpty()) {
             throw new CoreException(

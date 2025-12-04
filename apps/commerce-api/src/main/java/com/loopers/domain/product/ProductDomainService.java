@@ -62,6 +62,18 @@ public class ProductDomainService {
     }
 
     /**
+     * 재고 복구
+     */
+    @Transactional
+    public void increaseStock(Long productId, Long quantity) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "상품을 찾을 수 없습니다."));
+
+        product.increaseStock(quantity);
+        productRepository.save(product);
+    }
+
+    /**
      * 비관적 락 상품조회
      */
     private Product getProductWithLock(Long productId) {
