@@ -1,8 +1,10 @@
 package com.loopers.application.order;
 
+import com.loopers.application.payment.PaymentCompensationService;
 import com.loopers.domain.order.Order;
-import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderDomainService;
+import com.loopers.domain.order.OrderItem;
+import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.order.Payment;
 import com.loopers.domain.order.PaymentDomainService;
 import com.loopers.domain.order.PaymentType;
@@ -16,6 +18,7 @@ import com.loopers.interfaces.api.order.OrderDto;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -25,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class OrderFacade {
@@ -34,6 +38,7 @@ public class OrderFacade {
     private final ProductCacheService productCacheService;
     private final PaymentDomainService paymentDomainService;
     private final PaymentStrategyFactory paymentStrategyFactory;
+    private final PaymentCompensationService paymentCompensationService;
 
     public record PaymentInfo(
         PaymentType paymentType,
@@ -138,8 +143,15 @@ public class OrderFacade {
                         .cardNo(paymentInfo.cardNo())
                         .build();
 
-                    PaymentStrategy strategy = paymentStrategyFactory.create(paymentInfo.paymentType());
-                    strategy.executePayment(context);
+                    try {
+                        PaymentStrategy strategy = paymentStrategyFactory.create(paymentInfo.paymentType());
+                        strategy.executePayment(context);
+                    } catch (Exception e) {
+                        log.error("PG payment request failed after commit. orderId: {}, paymentId: {}, error: {}",
+                                orderId, paymentId, e.getMessage(), e);
+                        paymentCompensationService.compensateFailedPayment(
+                                userId, orderId, paymentId, e.getMessage());
+                    }
                 }
             });
         }
@@ -171,6 +183,12 @@ public class OrderFacade {
     @Transactional
     public void handlePaymentFailure(String userId, Long orderId) {
         Order order = orderDomainService.getOrder(userId, orderId);
+
+        if (order.getStatus() != OrderStatus.PAYING) {
+            log.warn("Order is not in PAYING status. Skipping failure handling. orderId: {}, status: {}",
+                    orderId, order.getStatus());
+            return;
+        }
 
         List<OrderItem> items = new ArrayList<>(order.getOrderItems());
         items.sort(Comparator.comparing(OrderItem::getProductId).reversed());
