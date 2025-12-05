@@ -240,5 +240,35 @@ class PaymentTest {
                     .isInstanceOf(CoreException.class)
                     .hasMessageContaining("이미 거래 ID가 설정되어 있습니다");
         }
+
+        @Test
+        @DisplayName("updatePgTransactionId에 null 전달 시 예외")
+        void test5() {
+            Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.CARD_ONLY);
+
+            assertThatThrownBy(() -> payment.updatePgTransactionId(null))
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("PG 거래 ID");
+        }
+
+        @Test
+        @DisplayName("updatePgTransactionId에 빈 문자열 전달 시 예외")
+        void test6() {
+            Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.CARD_ONLY);
+
+            assertThatThrownBy(() -> payment.updatePgTransactionId(""))
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("PG 거래 ID");
+        }
+
+        @Test
+        @DisplayName("updatePgTransactionId에 공백 문자열 전달 시 예외")
+        void test7() {
+            Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.CARD_ONLY);
+
+            assertThatThrownBy(() -> payment.updatePgTransactionId("   "))
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("PG 거래 ID");
+        }
     }
 }

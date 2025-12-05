@@ -72,6 +72,12 @@ public class Payment extends BaseEntity {
      * PG 거래 ID 업데이트 (PG 요청 직후 저장)
      */
     public void updatePgTransactionId(String pgTransactionId) {
+        if (pgTransactionId == null || pgTransactionId.isBlank()) {
+            throw new CoreException(
+                    ErrorType.BAD_REQUEST,
+                    "PG 거래 ID는 필수입니다"
+            );
+        }
         if (this.pgTransactionId != null) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,
