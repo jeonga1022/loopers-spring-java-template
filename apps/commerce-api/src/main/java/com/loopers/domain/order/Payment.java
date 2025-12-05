@@ -61,7 +61,10 @@ public class Payment extends BaseEntity {
      * 결제 생성
      */
     public static Payment create(Long orderId, String userId, Long amount, PaymentType paymentType) {
-        validatePaymentInput(amount);
+        validateOrderId(orderId);
+        validateUserId(userId);
+        validateAmount(amount);
+        validatePaymentType(paymentType);
         return new Payment(orderId, userId, amount, paymentType);
     }
 
@@ -115,11 +118,38 @@ public class Payment extends BaseEntity {
         this.failureReason = reason;
     }
 
-    private static void validatePaymentInput(Long amount) {
+    private static void validateOrderId(Long orderId) {
+        if (orderId == null) {
+            throw new CoreException(
+                    ErrorType.BAD_REQUEST,
+                    "주문 ID는 필수입니다"
+            );
+        }
+    }
+
+    private static void validateUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new CoreException(
+                    ErrorType.BAD_REQUEST,
+                    "사용자 ID는 필수입니다"
+            );
+        }
+    }
+
+    private static void validateAmount(Long amount) {
         if (amount == null || amount <= 0) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,
                     "결제 금액은 0보다 커야 합니다"
+            );
+        }
+    }
+
+    private static void validatePaymentType(PaymentType paymentType) {
+        if (paymentType == null) {
+            throw new CoreException(
+                    ErrorType.BAD_REQUEST,
+                    "결제 타입은 필수입니다"
             );
         }
     }

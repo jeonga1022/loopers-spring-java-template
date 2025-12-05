@@ -54,6 +54,38 @@ class PaymentTest {
                     .isInstanceOf(CoreException.class)
                     .hasMessageContaining("0보다 커야");
         }
+
+        @Test
+        @DisplayName("null orderId는 생성 불가")
+        void test5() {
+            assertThatThrownBy(() -> Payment.create(null, USER_ID, AMOUNT, PaymentType.POINT_ONLY))
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("주문 ID");
+        }
+
+        @Test
+        @DisplayName("null userId는 생성 불가")
+        void test6() {
+            assertThatThrownBy(() -> Payment.create(ORDER_ID, null, AMOUNT, PaymentType.POINT_ONLY))
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("사용자 ID");
+        }
+
+        @Test
+        @DisplayName("빈 userId는 생성 불가")
+        void test7() {
+            assertThatThrownBy(() -> Payment.create(ORDER_ID, "", AMOUNT, PaymentType.POINT_ONLY))
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("사용자 ID");
+        }
+
+        @Test
+        @DisplayName("null paymentType은 생성 불가")
+        void test8() {
+            assertThatThrownBy(() -> Payment.create(ORDER_ID, USER_ID, AMOUNT, null))
+                    .isInstanceOf(CoreException.class)
+                    .hasMessageContaining("결제 타입");
+        }
     }
 
     @Nested
