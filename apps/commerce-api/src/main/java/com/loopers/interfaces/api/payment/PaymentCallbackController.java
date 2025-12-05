@@ -2,6 +2,7 @@ package com.loopers.interfaces.api.payment;
 
 import com.loopers.application.payment.PaymentFacade;
 import com.loopers.infrastructure.pg.PgStatus;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -21,7 +22,7 @@ public class PaymentCallbackController {
 
     @PostMapping("/callback")
     @ResponseStatus(HttpStatus.OK)
-    public void handleCallback(@RequestBody PaymentCallbackRequest request) {
+    public void handleCallback(@Valid @RequestBody PaymentCallbackRequest request) {
         log.info("Payment callback received. transactionKey: {}, status: {}",
                 request.getTransactionKey(), request.getStatus());
 

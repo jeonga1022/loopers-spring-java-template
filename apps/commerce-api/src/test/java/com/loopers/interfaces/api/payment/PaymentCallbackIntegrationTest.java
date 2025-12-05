@@ -125,4 +125,72 @@ class PaymentCallbackIntegrationTest {
         Order savedOrder = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.FAILED);
     }
+
+    @Test
+    @DisplayName("transactionKey가 null이면 400 Bad Request")
+    void test3() throws Exception {
+        String requestBody = """
+                {
+                    "transactionKey": null,
+                    "status": "SUCCESS",
+                    "reason": null
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/payments/callback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("transactionKey가 빈 문자열이면 400 Bad Request")
+    void test4() throws Exception {
+        String requestBody = """
+                {
+                    "transactionKey": "",
+                    "status": "SUCCESS",
+                    "reason": null
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/payments/callback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("status가 null이면 400 Bad Request")
+    void test5() throws Exception {
+        String requestBody = """
+                {
+                    "transactionKey": "TX-12345",
+                    "status": null,
+                    "reason": null
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/payments/callback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("status가 빈 문자열이면 400 Bad Request")
+    void test6() throws Exception {
+        String requestBody = """
+                {
+                    "transactionKey": "TX-12345",
+                    "status": "",
+                    "reason": null
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/payments/callback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
 }

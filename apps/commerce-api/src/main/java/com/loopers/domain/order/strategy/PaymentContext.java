@@ -1,5 +1,8 @@
 package com.loopers.domain.order.strategy;
 
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
+
 public record PaymentContext(
     Long orderId,
     Long paymentId,
@@ -65,7 +68,18 @@ public record PaymentContext(
         }
 
         public PaymentContext build() {
+            validateAmountConsistency(totalAmount, pointAmount, cardAmount);
             return new PaymentContext(orderId, paymentId, userId, totalAmount, pointAmount, cardAmount, cardType, cardNo);
+        }
+    }
+
+    private static void validateAmountConsistency(long totalAmount, long pointAmount, long cardAmount) {
+        if (totalAmount != pointAmount + cardAmount) {
+            throw new CoreException(
+                ErrorType.BAD_REQUEST,
+                String.format("금액이 일치하지 않습니다. totalAmount: %d, pointAmount + cardAmount: %d",
+                    totalAmount, pointAmount + cardAmount)
+            );
         }
     }
 
@@ -78,6 +92,7 @@ public record PaymentContext(
     }
 
     public static PaymentContext forMixed(Long orderId, Long paymentId, String userId, long totalAmount, long pointAmount, long cardAmount, String cardType, String cardNo) {
+        validateAmountConsistency(totalAmount, pointAmount, cardAmount);
         return new PaymentContext(orderId, paymentId, userId, totalAmount, pointAmount, cardAmount, cardType, cardNo);
     }
 }
