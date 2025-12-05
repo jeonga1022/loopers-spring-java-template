@@ -104,14 +104,26 @@ class PaymentTest {
         }
 
         @Test
-        @DisplayName("SUCCESS 상태에서 다시 SUCCESS로 전환 불가")
+        @DisplayName("SUCCESS 상태에서 다른 pgTransactionId로 다시 SUCCESS 시도 시 예외")
         void test2() {
             Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.POINT_ONLY);
             payment.markAsSuccess("PG_TXN_12345");
 
             assertThatThrownBy(() -> payment.markAsSuccess("PG_TXN_67890"))
                     .isInstanceOf(CoreException.class)
-                    .hasMessageContaining("PENDING 상태에서만");
+                    .hasMessageContaining("이미 다른 거래로 성공 처리");
+        }
+
+        @Test
+        @DisplayName("SUCCESS 상태에서 같은 pgTransactionId로 다시 호출 시 멱등성 보장")
+        void test4() {
+            Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.POINT_ONLY);
+            payment.markAsSuccess("PG_TXN_12345");
+
+            payment.markAsSuccess("PG_TXN_12345"); // 같은 ID로 재시도 - 예외 없어야 함
+
+            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+            assertThat(payment.getPgTransactionId()).isEqualTo("PG_TXN_12345");
         }
 
         @Test
@@ -153,14 +165,15 @@ class PaymentTest {
         }
 
         @Test
-        @DisplayName("FAILED 상태에서 다시 FAILED로 전환 불가")
+        @DisplayName("FAILED 상태에서 다시 FAILED로 호출 시 멱등성 보장")
         void test3() {
             Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.POINT_ONLY);
             payment.markAsFailed("포인트 부족");
 
-            assertThatThrownBy(() -> payment.markAsFailed("다른 이유"))
-                    .isInstanceOf(CoreException.class)
-                    .hasMessageContaining("PENDING 상태에서만");
+            payment.markAsFailed("다른 이유"); // 재시도 - 예외 없어야 함
+
+            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+            assertThat(payment.getFailureReason()).isEqualTo("포인트 부족"); // 첫 번째 이유 유지
         }
     }
 
@@ -230,7 +243,7 @@ class PaymentTest {
         }
 
         @Test
-        @DisplayName("updatePgTransactionId 중복 호출 시 예외")
+        @DisplayName("updatePgTransactionId 다른 ID로 중복 호출 시 예외")
         void test4() {
             Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.CARD_ONLY);
 
@@ -238,7 +251,18 @@ class PaymentTest {
 
             assertThatThrownBy(() -> payment.updatePgTransactionId("TX-99999"))
                     .isInstanceOf(CoreException.class)
-                    .hasMessageContaining("이미 거래 ID가 설정되어 있습니다");
+                    .hasMessageContaining("이미 다른 거래 ID가 설정");
+        }
+
+        @Test
+        @DisplayName("updatePgTransactionId 같은 ID로 중복 호출 시 멱등성 보장")
+        void test8() {
+            Payment payment = Payment.create(ORDER_ID, USER_ID, AMOUNT, PaymentType.CARD_ONLY);
+
+            payment.updatePgTransactionId("TX-12345");
+            payment.updatePgTransactionId("TX-12345"); // 같은 ID로 재시도
+
+            assertThat(payment.getPgTransactionId()).isEqualTo("TX-12345");
         }
 
         @Test

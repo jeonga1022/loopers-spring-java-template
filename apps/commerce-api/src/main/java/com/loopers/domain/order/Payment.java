@@ -70,6 +70,8 @@ public class Payment extends BaseEntity {
 
     /**
      * PG 거래 ID 업데이트 (PG 요청 직후 저장)
+     * - 같은 ID로 재시도 시 멱등성 보장 (예외 없이 무시)
+     * - 다른 ID로 시도 시 예외 발생
      */
     public void updatePgTransactionId(String pgTransactionId) {
         if (pgTransactionId == null || pgTransactionId.isBlank()) {
@@ -78,10 +80,15 @@ public class Payment extends BaseEntity {
                     "PG 거래 ID는 필수입니다"
             );
         }
+        // 같은 ID면 멱등성 보장
+        if (this.pgTransactionId != null && this.pgTransactionId.equals(pgTransactionId)) {
+            return;
+        }
+        // 다른 ID면 예외
         if (this.pgTransactionId != null) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,
-                    "이미 거래 ID가 설정되어 있습니다: " + this.pgTransactionId
+                    "이미 다른 거래 ID가 설정되어 있습니다: " + this.pgTransactionId
             );
         }
         this.pgTransactionId = pgTransactionId;
@@ -89,8 +96,21 @@ public class Payment extends BaseEntity {
 
     /**
      * 결제 성공 처리
+     * - 이미 SUCCESS이고 같은 pgTransactionId면 멱등성 보장
+     * - 이미 SUCCESS이고 다른 pgTransactionId면 예외
      */
     public void markAsSuccess(String pgTransactionId) {
+        // 이미 SUCCESS인 경우 멱등성 체크
+        if (this.status == PaymentStatus.SUCCESS) {
+            if (this.pgTransactionId != null && this.pgTransactionId.equals(pgTransactionId)) {
+                return; // 같은 거래 ID면 멱등성 보장
+            }
+            throw new CoreException(
+                    ErrorType.BAD_REQUEST,
+                    "이미 다른 거래로 성공 처리되었습니다: " + this.pgTransactionId
+            );
+        }
+
         if (this.status != PaymentStatus.PENDING) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,
@@ -112,8 +132,14 @@ public class Payment extends BaseEntity {
 
     /**
      * 결제 실패 처리
+     * - 이미 FAILED면 멱등성 보장 (첫 번째 실패 이유 유지)
      */
     public void markAsFailed(String reason) {
+        // 이미 FAILED면 멱등성 보장
+        if (this.status == PaymentStatus.FAILED) {
+            return;
+        }
+
         if (this.status != PaymentStatus.PENDING) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,
