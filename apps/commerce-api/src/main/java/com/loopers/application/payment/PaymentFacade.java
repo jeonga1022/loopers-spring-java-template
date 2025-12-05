@@ -5,10 +5,9 @@ import com.loopers.domain.order.OrderDomainService;
 import com.loopers.domain.order.Payment;
 import com.loopers.domain.order.PaymentDomainService;
 import com.loopers.domain.order.PaymentStatus;
-import com.loopers.infrastructure.pg.PgClient;
 import com.loopers.infrastructure.pg.PgStatus;
+import com.loopers.infrastructure.pg.PgTransactionService;
 import com.loopers.infrastructure.pg.dto.PgTransactionDetail;
-import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,7 +20,7 @@ public class PaymentFacade {
 
     private final PaymentDomainService paymentDomainService;
     private final OrderDomainService orderDomainService;
-    private final PgClient pgClient;
+    private final PgTransactionService pgTransactionService;
     private final OrderFacade orderFacade;
 
     @Transactional
@@ -68,7 +67,7 @@ public class PaymentFacade {
 
         try {
             log.info("Syncing payment status with PG. pgTransactionId: {}", payment.getPgTransactionId());
-            PgTransactionDetail detail = fetchPgTransactionWithRetry(userId, payment.getPgTransactionId());
+            PgTransactionDetail detail = pgTransactionService.getTransaction(userId, payment.getPgTransactionId());
 
             PgStatus pgStatus = PgStatus.from(detail.getStatus());
 
@@ -89,10 +88,5 @@ public class PaymentFacade {
             // PG 조회 실패해도 기존 상태 반환 (에러 확산 방지)
             return payment;
         }
-    }
-
-    @Retry(name = "pgRetry")
-    private PgTransactionDetail fetchPgTransactionWithRetry(String userId, String pgTransactionId) {
-        return pgClient.getTransaction(userId, pgTransactionId);
     }
 }
