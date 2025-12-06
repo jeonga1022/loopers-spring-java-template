@@ -1,15 +1,17 @@
 package com.loopers.application.payment;
 
-import com.loopers.application.order.OrderFacade;
 import com.loopers.domain.order.OrderDomainService;
 import com.loopers.domain.order.Payment;
 import com.loopers.domain.order.PaymentDomainService;
 import com.loopers.domain.order.PaymentStatus;
+import com.loopers.domain.order.event.PaymentFailedEvent;
+import com.loopers.domain.order.event.PaymentSucceededEvent;
 import com.loopers.infrastructure.pg.PgStatus;
 import com.loopers.infrastructure.pg.PgTransactionService;
 import com.loopers.infrastructure.pg.dto.PgTransactionDetail;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,20 +23,23 @@ public class PaymentFacade {
     private final PaymentDomainService paymentDomainService;
     private final OrderDomainService orderDomainService;
     private final PgTransactionService pgTransactionService;
-    private final OrderFacade orderFacade;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void completePaymentByCallback(String pgTransactionId) {
         log.info("Completing payment by callback. pgTransactionId: {}", pgTransactionId);
 
-        // Payment 완료
         Payment payment = paymentDomainService.getPaymentByPgTransactionId(pgTransactionId);
         paymentDomainService.markAsSuccess(payment.getId(), pgTransactionId);
 
-        // Order 완료
-        orderDomainService.confirmOrder(payment.getUserId(), payment.getOrderId());
+        eventPublisher.publishEvent(PaymentSucceededEvent.of(
+                payment.getOrderId(),
+                payment.getId(),
+                payment.getUserId(),
+                pgTransactionId
+        ));
 
-        log.info("Payment and Order completed. orderId: {}", payment.getOrderId());
+        log.info("Payment completed, event published. orderId: {}", payment.getOrderId());
     }
 
     @Transactional
@@ -45,9 +50,14 @@ public class PaymentFacade {
         Payment payment = paymentDomainService.getPaymentByPgTransactionId(pgTransactionId);
         paymentDomainService.markAsFailed(payment.getId(), reason);
 
-        orderFacade.handlePaymentFailure(payment.getUserId(), payment.getOrderId());
+        eventPublisher.publishEvent(PaymentFailedEvent.of(
+                payment.getOrderId(),
+                payment.getId(),
+                payment.getUserId(),
+                reason
+        ));
 
-        log.info("Payment and Order failed with stock recovery. orderId: {}", payment.getOrderId());
+        log.info("Payment failed, event published. orderId: {}", payment.getOrderId());
     }
 
     @Transactional(readOnly = true)
@@ -73,12 +83,22 @@ public class PaymentFacade {
 
             if (pgStatus.isSuccess()) {
                 paymentDomainService.markAsSuccess(payment.getId(), payment.getPgTransactionId());
-                orderDomainService.confirmOrder(userId, orderId);
+                eventPublisher.publishEvent(PaymentSucceededEvent.of(
+                        payment.getOrderId(),
+                        payment.getId(),
+                        userId,
+                        payment.getPgTransactionId()
+                ));
                 log.info("Payment synced to SUCCESS. orderId: {}", orderId);
             } else if (pgStatus.isFailed()) {
                 paymentDomainService.markAsFailed(payment.getId(), detail.getReason());
-                orderFacade.handlePaymentFailure(userId, orderId);
-                log.info("Payment synced to FAILED with stock recovery. orderId: {}", orderId);
+                eventPublisher.publishEvent(PaymentFailedEvent.of(
+                        payment.getOrderId(),
+                        payment.getId(),
+                        userId,
+                        detail.getReason()
+                ));
+                log.info("Payment synced to FAILED. orderId: {}", orderId);
             }
 
             return paymentDomainService.getPaymentByOrderId(orderId);
