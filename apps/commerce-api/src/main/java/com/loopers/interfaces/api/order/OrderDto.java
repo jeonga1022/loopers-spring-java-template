@@ -11,7 +11,9 @@ public class OrderDto {
     public record OrderCreateRequest(
             List<OrderItemRequest> items,
             @JsonInclude(Include.NON_NULL)
-            CardInfo cardInfo
+            CardInfo cardInfo,
+            @JsonInclude(Include.NON_NULL)
+            Long couponId
     ) {
     }
 

@@ -16,8 +16,14 @@ public class OrderDomainService {
     private final OrderRepository orderRepository;
 
     @Transactional
-    public Order createOrder(String userId, List<OrderItem> orderItems,  long totalAmount) {
+    public Order createOrder(String userId, List<OrderItem> orderItems, long totalAmount) {
         Order order = Order.create(userId, orderItems, totalAmount);
+        return orderRepository.save(order);
+    }
+
+    @Transactional
+    public Order createOrder(String userId, List<OrderItem> orderItems, long totalAmount, Long couponId, long discountAmount) {
+        Order order = Order.create(userId, orderItems, totalAmount, couponId, discountAmount);
         return orderRepository.save(order);
     }
 
