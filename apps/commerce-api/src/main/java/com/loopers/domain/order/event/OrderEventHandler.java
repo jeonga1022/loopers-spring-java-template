@@ -1,9 +1,11 @@
 package com.loopers.domain.order.event;
 
 import com.loopers.application.order.OrderFacade;
+import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderDomainService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -14,12 +16,16 @@ public class OrderEventHandler {
 
     private final OrderDomainService orderDomainService;
     private final OrderFacade orderFacade;
+    private final ApplicationEventPublisher eventPublisher;
 
     @EventListener
     public void handlePaymentSucceeded(PaymentSucceededEvent event) {
         log.info("결제 성공 이벤트 수신: orderId={}, paymentId={}", event.getOrderId(), event.getPaymentId());
         orderDomainService.confirmOrder(event.getUserId(), event.getOrderId());
         log.info("주문 확정 완료: orderId={}", event.getOrderId());
+
+        Order order = orderDomainService.getOrder(event.getUserId(), event.getOrderId());
+        eventPublisher.publishEvent(OrderCompletedEvent.from(order));
     }
 
     @EventListener

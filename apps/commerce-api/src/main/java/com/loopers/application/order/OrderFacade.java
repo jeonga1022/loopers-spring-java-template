@@ -4,6 +4,7 @@ import com.loopers.application.payment.PaymentCompensationService;
 import com.loopers.domain.coupon.Coupon;
 import com.loopers.domain.coupon.CouponDomainService;
 import com.loopers.domain.coupon.event.CouponUsedEvent;
+import com.loopers.domain.order.event.OrderCompletedEvent;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderDomainService;
 import com.loopers.domain.order.OrderItem;
@@ -115,6 +116,7 @@ public class OrderFacade {
         order.startPayment();
         order.confirm();
         publishCouponUsedEvent(command, order.getId(), discountAmount);
+        publishOrderCompletedEvent(order);
     }
 
     private void executePointPayment(OrderCreateCommand command, Order order, Payment payment,
@@ -135,6 +137,7 @@ public class OrderFacade {
         paymentDomainService.markAsSuccess(payment.getId(), "internal-payment");
 
         publishCouponUsedEvent(command, order.getId(), discountAmount);
+        publishOrderCompletedEvent(order);
     }
 
     private void scheduleCardPayment(OrderCreateCommand command, Order order, Payment payment,
@@ -185,6 +188,16 @@ public class OrderFacade {
                 }
             });
         }
+    }
+
+    private void publishOrderCompletedEvent(Order order) {
+        OrderCompletedEvent event = OrderCompletedEvent.from(order);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                eventPublisher.publishEvent(event);
+            }
+        });
     }
 
     @Transactional(readOnly = true)
