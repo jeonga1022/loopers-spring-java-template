@@ -1,5 +1,7 @@
 package com.loopers.domain.order.event;
 
+import com.loopers.domain.order.Payment;
+
 import java.time.LocalDateTime;
 
 public class PaymentSucceededEvent {
@@ -10,16 +12,16 @@ public class PaymentSucceededEvent {
     private final String pgTransactionId;
     private final LocalDateTime occurredAt;
 
-    private PaymentSucceededEvent(Long orderId, Long paymentId, String userId, String pgTransactionId) {
-        this.orderId = orderId;
-        this.paymentId = paymentId;
-        this.userId = userId;
+    private PaymentSucceededEvent(Payment payment, String pgTransactionId) {
+        this.orderId = payment.getOrderId();
+        this.paymentId = payment.getId();
+        this.userId = payment.getUserId();
         this.pgTransactionId = pgTransactionId;
         this.occurredAt = LocalDateTime.now();
     }
 
-    public static PaymentSucceededEvent of(Long orderId, Long paymentId, String userId, String pgTransactionId) {
-        return new PaymentSucceededEvent(orderId, paymentId, userId, pgTransactionId);
+    public static PaymentSucceededEvent from(Payment payment, String pgTransactionId) {
+        return new PaymentSucceededEvent(payment, pgTransactionId);
     }
 
     public Long getOrderId() {

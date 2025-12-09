@@ -183,7 +183,7 @@ class ProductLikeApiE2ETest {
                     () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND),
                     () -> assertThat(response.getBody()).isNotNull(),
                     () -> assertThat(response.getBody().meta().message())
-                            .contains("해당 사용자를 찾을 수 없습니다")
+                            .contains("존재하지 않는 유저 입니다.")
             );
         }
 

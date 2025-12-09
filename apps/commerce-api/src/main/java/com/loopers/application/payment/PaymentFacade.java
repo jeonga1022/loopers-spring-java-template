@@ -32,12 +32,7 @@ public class PaymentFacade {
         Payment payment = paymentDomainService.getPaymentByPgTransactionId(pgTransactionId);
         paymentDomainService.markAsSuccess(payment.getId(), pgTransactionId);
 
-        eventPublisher.publishEvent(PaymentSucceededEvent.of(
-                payment.getOrderId(),
-                payment.getId(),
-                payment.getUserId(),
-                pgTransactionId
-        ));
+        publishPaymentSucceededEvent(payment, pgTransactionId);
 
         log.info("Payment completed, event published. orderId: {}", payment.getOrderId());
     }
@@ -50,12 +45,7 @@ public class PaymentFacade {
         Payment payment = paymentDomainService.getPaymentByPgTransactionId(pgTransactionId);
         paymentDomainService.markAsFailed(payment.getId(), reason);
 
-        eventPublisher.publishEvent(PaymentFailedEvent.of(
-                payment.getOrderId(),
-                payment.getId(),
-                payment.getUserId(),
-                reason
-        ));
+        publishPaymentFailedEvent(payment, reason);
 
         log.info("Payment failed, event published. orderId: {}", payment.getOrderId());
     }
@@ -83,21 +73,11 @@ public class PaymentFacade {
 
             if (pgStatus.isSuccess()) {
                 paymentDomainService.markAsSuccess(payment.getId(), payment.getPgTransactionId());
-                eventPublisher.publishEvent(PaymentSucceededEvent.of(
-                        payment.getOrderId(),
-                        payment.getId(),
-                        userId,
-                        payment.getPgTransactionId()
-                ));
+                publishPaymentSucceededEvent(payment, payment.getPgTransactionId());
                 log.info("Payment synced to SUCCESS. orderId: {}", orderId);
             } else if (pgStatus.isFailed()) {
                 paymentDomainService.markAsFailed(payment.getId(), detail.getReason());
-                eventPublisher.publishEvent(PaymentFailedEvent.of(
-                        payment.getOrderId(),
-                        payment.getId(),
-                        userId,
-                        detail.getReason()
-                ));
+                publishPaymentFailedEvent(payment, detail.getReason());
                 log.info("Payment synced to FAILED. orderId: {}", orderId);
             }
 
@@ -108,5 +88,13 @@ public class PaymentFacade {
             // PG 조회 실패해도 기존 상태 반환 (에러 확산 방지)
             return payment;
         }
+    }
+
+    private void publishPaymentSucceededEvent(Payment payment, String pgTransactionId) {
+        eventPublisher.publishEvent(PaymentSucceededEvent.from(payment, pgTransactionId));
+    }
+
+    private void publishPaymentFailedEvent(Payment payment, String reason) {
+        eventPublisher.publishEvent(PaymentFailedEvent.from(payment, reason));
     }
 }

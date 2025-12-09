@@ -1,5 +1,6 @@
-package com.loopers.domain.like.event;
+package com.loopers.application.like.event;
 
+import com.loopers.domain.like.event.ProductLikedEvent;
 import com.loopers.domain.product.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,7 @@ public class ProductLikeEventHandler {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void handle(ProductLikedEvent event) {
+    public void handleProductLiked(ProductLikedEvent event) {
         try {
             if (event.isLiked()) {
                 productRepository.incrementLikeCount(event.getProductId());

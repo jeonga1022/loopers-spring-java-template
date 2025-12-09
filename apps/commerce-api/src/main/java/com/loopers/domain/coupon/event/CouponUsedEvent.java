@@ -18,7 +18,7 @@ public class CouponUsedEvent {
         this.occurredAt = LocalDateTime.now();
     }
 
-    public static CouponUsedEvent of(Long couponId, Long orderId, String userId, long discountAmount) {
+    public static CouponUsedEvent from(Long couponId, Long orderId, String userId, long discountAmount) {
         return new CouponUsedEvent(couponId, orderId, userId, discountAmount);
     }
 

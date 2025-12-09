@@ -1,6 +1,7 @@
 package com.loopers.application.order;
 
 import com.loopers.application.payment.PaymentCompensationService;
+import com.loopers.application.stock.StockRecoveryService;
 import com.loopers.domain.coupon.Coupon;
 import com.loopers.domain.coupon.CouponDomainService;
 import com.loopers.domain.coupon.event.CouponUsedEvent;
@@ -44,6 +45,7 @@ public class OrderFacade {
     private final PaymentDomainService paymentDomainService;
     private final PaymentStrategyFactory paymentStrategyFactory;
     private final PaymentCompensationService paymentCompensationService;
+    private final StockRecoveryService stockRecoveryService;
     private final CouponDomainService couponDomainService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -104,9 +106,17 @@ public class OrderFacade {
         order.startPayment();
 
         if (paymentType == PaymentType.POINT_ONLY) {
-            executePointPayment(command, order, payment, paymentAmount, discountAmount);
+            PaymentContext context = PaymentContext.forPointOnly(
+                    order.getId(), payment.getId(), command.userId(), paymentAmount);
+            executePointPayment(context);
+            completeOrderWithPayment(order, payment);
+            publishOrderEvents(command, order, discountAmount);
         } else {
-            scheduleCardPayment(command, order, payment, paymentAmount, discountAmount);
+            CardInfo cardInfo = command.cardInfo();
+            PaymentContext context = PaymentContext.forCardOnly(
+                    order.getId(), payment.getId(), command.userId(), paymentAmount,
+                    cardInfo.cardType(), cardInfo.cardNo());
+            scheduleCardPayment(context, command, order.getId(), payment.getId(), discountAmount);
         }
 
         return OrderInfo.from(order);
@@ -119,83 +129,64 @@ public class OrderFacade {
         publishOrderCompletedEvent(order);
     }
 
-    private void executePointPayment(OrderCreateCommand command, Order order, Payment payment,
-                                      long paymentAmount, long discountAmount) {
-        PaymentContext context = PaymentContext.builder()
-                .orderId(order.getId())
-                .paymentId(payment.getId())
-                .userId(command.userId())
-                .totalAmount(paymentAmount)
-                .pointAmount(paymentAmount)
-                .cardAmount(0)
-                .build();
-
+    private void executePointPayment(PaymentContext context) {
         PaymentStrategy strategy = paymentStrategyFactory.create(PaymentType.POINT_ONLY);
         strategy.executePayment(context);
+    }
 
+    private void completeOrderWithPayment(Order order, Payment payment) {
         order.confirm();
         paymentDomainService.markAsSuccess(payment.getId(), "internal-payment");
+    }
 
+    private void publishOrderEvents(OrderCreateCommand command, Order order, long discountAmount) {
         publishCouponUsedEvent(command, order.getId(), discountAmount);
         publishOrderCompletedEvent(order);
     }
 
-    private void scheduleCardPayment(OrderCreateCommand command, Order order, Payment payment,
-                                      long paymentAmount, long discountAmount) {
-        Long orderId = order.getId();
-        Long paymentId = payment.getId();
+    private void scheduleCardPayment(PaymentContext context, OrderCreateCommand command,
+                                      Long orderId, Long paymentId, long discountAmount) {
         String userId = command.userId();
-        CardInfo cardInfo = command.cardInfo();
 
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                PaymentContext context = PaymentContext.builder()
-                        .orderId(orderId)
-                        .paymentId(paymentId)
-                        .userId(userId)
-                        .totalAmount(paymentAmount)
-                        .pointAmount(0)
-                        .cardAmount(paymentAmount)
-                        .cardType(cardInfo.cardType())
-                        .cardNo(cardInfo.cardNo())
-                        .build();
-
-                try {
-                    PaymentStrategy strategy = paymentStrategyFactory.create(PaymentType.CARD_ONLY);
-                    strategy.executePayment(context);
-
-                    if (command.hasCoupon()) {
-                        eventPublisher.publishEvent(CouponUsedEvent.of(
-                                command.couponId(), orderId, userId, discountAmount));
-                    }
-                } catch (Exception e) {
-                    log.error("PG payment failed. orderId: {}, error: {}", orderId, e.getMessage(), e);
-                    paymentCompensationService.compensateFailedPayment(userId, orderId, paymentId, e.getMessage());
-                }
+        runAfterCommit(() -> {
+            try {
+                executeCardPayment(context);
+                publishCouponUsedEventDirectly(command, orderId, discountAmount);
+            } catch (Exception e) {
+                log.error("PG payment failed. orderId: {}, error: {}", orderId, e.getMessage(), e);
+                paymentCompensationService.compensateFailedPayment(userId, orderId, paymentId, e.getMessage());
             }
         });
     }
 
+    private void executeCardPayment(PaymentContext context) {
+        PaymentStrategy strategy = paymentStrategyFactory.create(PaymentType.CARD_ONLY);
+        strategy.executePayment(context);
+    }
+
     private void publishCouponUsedEvent(OrderCreateCommand command, Long orderId, long discountAmount) {
         if (command.hasCoupon()) {
-            Long couponId = command.couponId();
-            String userId = command.userId();
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    eventPublisher.publishEvent(CouponUsedEvent.of(couponId, orderId, userId, discountAmount));
-                }
-            });
+            runAfterCommit(() -> publishCouponUsedEventDirectly(command, orderId, discountAmount));
+        }
+    }
+
+    private void publishCouponUsedEventDirectly(OrderCreateCommand command, Long orderId, long discountAmount) {
+        if (command.hasCoupon()) {
+            eventPublisher.publishEvent(CouponUsedEvent.from(
+                    command.couponId(), orderId, command.userId(), discountAmount));
         }
     }
 
     private void publishOrderCompletedEvent(Order order) {
         OrderCompletedEvent event = OrderCompletedEvent.from(order);
+        runAfterCommit(() -> eventPublisher.publishEvent(event));
+    }
+
+    private void runAfterCommit(Runnable action) {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                eventPublisher.publishEvent(event);
+                action.run();
             }
         });
     }
@@ -223,14 +214,7 @@ public class OrderFacade {
             return;
         }
 
-        List<OrderItem> items = new ArrayList<>(order.getOrderItems());
-        items.sort(Comparator.comparing(OrderItem::getProductId).reversed());
-
-        for (OrderItem item : items) {
-            productDomainService.increaseStock(item.getProductId(), item.getQuantity());
-            productCacheService.deleteProductDetail(item.getProductId());
-        }
-
+        stockRecoveryService.recover(order);
         order.fail();
     }
 

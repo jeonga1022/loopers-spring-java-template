@@ -1,6 +1,7 @@
 package com.loopers.domain.coupon;
 
 import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorMessage;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,7 @@ public class CouponDomainService {
         Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
-                        "쿠폰을 찾을 수 없습니다. couponId: " + couponId
+                        ErrorMessage.COUPON_NOT_FOUND
                 ));
         coupon.use();
         couponRepository.save(coupon);
@@ -39,7 +40,7 @@ public class CouponDomainService {
         return couponRepository.findById(couponId)
                 .orElseThrow(() -> new CoreException(
                         ErrorType.NOT_FOUND,
-                        "쿠폰을 찾을 수 없습니다. couponId: " + couponId
+                        ErrorMessage.COUPON_NOT_FOUND
                 ));
     }
 
@@ -60,14 +61,14 @@ public class CouponDomainService {
         if (!coupon.getUserId().equals(userId)) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,
-                    "해당 쿠폰의 소유자가 아닙니다."
+                    ErrorMessage.COUPON_NOT_OWNER
             );
         }
 
         if (!coupon.isUsable()) {
             throw new CoreException(
                     ErrorType.BAD_REQUEST,
-                    "이미 사용된 쿠폰입니다."
+                    ErrorMessage.COUPON_ALREADY_USED
             );
         }
 

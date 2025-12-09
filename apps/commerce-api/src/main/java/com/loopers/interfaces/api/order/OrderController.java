@@ -33,14 +33,12 @@ public class OrderController implements OrderApiSpec {
 
     private OrderCreateCommand toCommand(String userId, OrderDto.OrderCreateRequest request) {
         List<OrderDto.OrderItemRequest> items = request.items();
-        OrderDto.CardInfo dtoCardInfo = request.cardInfo();
+        CardInfo cardInfo = request.cardInfo();
         Long couponId = request.couponId();
 
-        if (dtoCardInfo != null && couponId != null) {
-            CardInfo cardInfo = new CardInfo(dtoCardInfo.cardType(), dtoCardInfo.cardNo());
+        if (cardInfo != null && couponId != null) {
             return OrderCreateCommand.forCardPaymentWithCoupon(userId, items, cardInfo, couponId);
-        } else if (dtoCardInfo != null) {
-            CardInfo cardInfo = new CardInfo(dtoCardInfo.cardType(), dtoCardInfo.cardNo());
+        } else if (cardInfo != null) {
             return OrderCreateCommand.forCardPayment(userId, items, cardInfo);
         } else if (couponId != null) {
             return OrderCreateCommand.forPointPaymentWithCoupon(userId, items, couponId);

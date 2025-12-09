@@ -43,7 +43,7 @@ public class OrderDomainService {
         if (!order.getUserId().equals(userId)) {
             throw new CoreException(
                     ErrorType.NOT_FOUND,
-                    "해당 주문에 접근할 권한이 없습니다."
+                    ErrorMessage.ORDER_ACCESS_DENIED
             );
         }
 
@@ -54,11 +54,5 @@ public class OrderDomainService {
     public void confirmOrder(String userId, Long orderId) {
         Order order = getOrder(userId, orderId);
         order.confirm();
-    }
-
-    @Transactional
-    public void failOrder(String userId, Long orderId) {
-        Order order = getOrder(userId, orderId);
-        order.fail();
     }
 }

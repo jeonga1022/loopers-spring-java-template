@@ -1,8 +1,11 @@
-package com.loopers.domain.order.event;
+package com.loopers.application.order.event;
 
 import com.loopers.application.order.OrderFacade;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderDomainService;
+import com.loopers.domain.order.event.OrderCompletedEvent;
+import com.loopers.domain.order.event.PaymentFailedEvent;
+import com.loopers.domain.order.event.PaymentSucceededEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
