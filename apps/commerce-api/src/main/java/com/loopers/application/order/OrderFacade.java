@@ -165,16 +165,19 @@ public class OrderFacade {
     }
 
     private void publishCouponUsedEvent(OrderCreateCommand command, Long orderId, long discountAmount) {
-        if (command.hasCoupon()) {
-            runAfterCommit(() -> publishCouponUsedEventDirectly(command, orderId, discountAmount));
+        if (!command.hasCoupon()) {
+            return;
         }
+        runAfterCommit(() -> eventPublisher.publishEvent(
+                CouponUsedEvent.from(command.couponId(), orderId, command.userId(), discountAmount)));
     }
 
     private void publishCouponUsedEventDirectly(OrderCreateCommand command, Long orderId, long discountAmount) {
-        if (command.hasCoupon()) {
-            eventPublisher.publishEvent(CouponUsedEvent.from(
-                    command.couponId(), orderId, command.userId(), discountAmount));
+        if (!command.hasCoupon()) {
+            return;
         }
+        eventPublisher.publishEvent(
+                CouponUsedEvent.from(command.couponId(), orderId, command.userId(), discountAmount));
     }
 
     private void publishOrderCompletedEvent(Order order) {
