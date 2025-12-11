@@ -21,11 +21,15 @@ class CouponTest {
         void test1() {
             Coupon coupon = Coupon.create(USER_ID, "신규 가입 쿠폰", 1000L);
 
-            assertThat(coupon.getUserId()).isEqualTo(USER_ID);
-            assertThat(coupon.getName()).isEqualTo("신규 가입 쿠폰");
-            assertThat(coupon.getDiscountAmount()).isEqualTo(1000L);
-            assertThat(coupon.getStatus()).isEqualTo(CouponStatus.ISSUED);
-            assertThat(coupon.getUsedAt()).isNull();
+            assertThat(coupon)
+                    .extracting(
+                            Coupon::getUserId,
+                            Coupon::getName,
+                            Coupon::getDiscountAmount,
+                            Coupon::getStatus,
+                            Coupon::getUsedAt
+                    )
+                    .containsExactly(USER_ID, "신규 가입 쿠폰", 1000L, CouponStatus.ISSUED, null);
         }
 
         @Test
