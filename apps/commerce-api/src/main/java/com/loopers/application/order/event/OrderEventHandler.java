@@ -24,17 +24,23 @@ public class OrderEventHandler {
     @EventListener
     public void handlePaymentSucceeded(PaymentSucceededEvent event) {
         log.info("결제 성공 이벤트 수신: orderId={}, paymentId={}", event.getOrderId(), event.getPaymentId());
-        orderDomainService.confirmOrder(event.getUserId(), event.getOrderId());
-        log.info("주문 확정 완료: orderId={}", event.getOrderId());
-
-        Order order = orderDomainService.getOrder(event.getUserId(), event.getOrderId());
-        eventPublisher.publishEvent(OrderCompletedEvent.from(order));
+        try {
+            Order order = orderDomainService.confirmOrder(event.getUserId(), event.getOrderId());
+            log.info("주문 확정 완료: orderId={}", event.getOrderId());
+            eventPublisher.publishEvent(OrderCompletedEvent.from(order));
+        } catch (Exception e) {
+            log.error("주문 확정 실패: orderId={}, error={}", event.getOrderId(), e.getMessage(), e);
+        }
     }
 
     @EventListener
     public void handlePaymentFailed(PaymentFailedEvent event) {
         log.info("결제 실패 이벤트 수신: orderId={}, reason={}", event.getOrderId(), event.getReason());
-        orderFacade.handlePaymentFailure(event.getUserId(), event.getOrderId());
-        log.info("주문 실패 처리 완료 (재고 복구 포함): orderId={}", event.getOrderId());
+        try {
+            orderFacade.handlePaymentFailure(event.getUserId(), event.getOrderId());
+            log.info("주문 실패 처리 완료 (재고 복구 포함): orderId={}", event.getOrderId());
+        } catch (Exception e) {
+            log.error("주문 실패 처리 중 오류: orderId={}, error={}", event.getOrderId(), e.getMessage(), e);
+        }
     }
 }

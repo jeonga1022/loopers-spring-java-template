@@ -51,8 +51,9 @@ public class OrderDomainService {
     }
 
     @Transactional
-    public void confirmOrder(String userId, Long orderId) {
+    public Order confirmOrder(String userId, Long orderId) {
         Order order = getOrder(userId, orderId);
         order.confirm();
+        return order;
     }
 }

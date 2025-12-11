@@ -44,21 +44,19 @@ class OrderEventHandlerTest {
         // arrange
         String userId = "user-1";
         Long orderId = 1L;
-        Long paymentId = 100L;
         String pgTransactionId = "pg-tx-123";
 
         Payment payment = Payment.create(orderId, userId, 10000L, PaymentType.CARD_ONLY);
         PaymentSucceededEvent event = PaymentSucceededEvent.from(payment, pgTransactionId);
 
         Order order = OrderFixture.create(userId, 10000L);
-        when(orderDomainService.getOrder(userId, orderId)).thenReturn(order);
+        when(orderDomainService.confirmOrder(userId, orderId)).thenReturn(order);
 
         // act
         orderEventHandler.handlePaymentSucceeded(event);
 
         // assert
         verify(orderDomainService, times(1)).confirmOrder(userId, orderId);
-        verify(orderDomainService, times(1)).getOrder(userId, orderId);
 
         ArgumentCaptor<OrderCompletedEvent> captor = ArgumentCaptor.forClass(OrderCompletedEvent.class);
         verify(eventPublisher, times(1)).publishEvent(captor.capture());
@@ -92,14 +90,13 @@ class OrderEventHandlerTest {
         // arrange
         String userId = "specific-user";
         Long orderId = 999L;
-        Long paymentId = 200L;
         String pgTransactionId = "pg-tx-456";
 
         Payment payment = Payment.create(orderId, userId, 50000L, PaymentType.CARD_ONLY);
         PaymentSucceededEvent event = PaymentSucceededEvent.from(payment, pgTransactionId);
 
         Order order = OrderFixture.create(userId, 50000L);
-        when(orderDomainService.getOrder(userId, orderId)).thenReturn(order);
+        when(orderDomainService.confirmOrder(userId, orderId)).thenReturn(order);
 
         // act
         orderEventHandler.handlePaymentSucceeded(event);
