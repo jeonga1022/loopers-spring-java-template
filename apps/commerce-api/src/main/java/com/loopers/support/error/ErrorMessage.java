@@ -14,4 +14,5 @@ public final class ErrorMessage {
     public static final String COUPON_NOT_FOUND = "쿠폰을 찾을 수 없습니다.";
     public static final String COUPON_NOT_OWNER = "해당 쿠폰의 소유자가 아닙니다.";
     public static final String COUPON_ALREADY_USED = "이미 사용된 쿠폰입니다.";
+    public static final String PAYMENT_ACCESS_DENIED = "해당 결제에 접근할 권한이 없습니다.";
 }
