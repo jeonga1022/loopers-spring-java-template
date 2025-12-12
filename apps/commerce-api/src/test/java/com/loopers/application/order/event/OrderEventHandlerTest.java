@@ -57,17 +57,16 @@ class OrderEventHandlerTest {
     }
 
     @Test
-    @DisplayName("결제 완료 이벤트 처리 실패해도 예외를 던지지 않는다")
+    @DisplayName("결제 완료 이벤트 처리 실패 시 예외를 전파한다")
     void handlePaymentCompletedTest2() {
         // arrange
         PaymentCompletedEvent event = createPaymentCompletedEvent();
         doThrow(new RuntimeException("DB error"))
                 .when(orderDomainService).confirmOrder(event.getUserId(), event.getOrderId());
 
-        // act - 예외 없이 정상 종료
-        orderEventHandler.handlePaymentCompleted(event);
-
-        // assert
+        // act & assert - 예외 전파 (Resilience4j @Retry는 통합테스트에서 동작)
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+                () -> orderEventHandler.handlePaymentCompleted(event));
         verify(orderDomainService, times(1)).confirmOrder(event.getUserId(), event.getOrderId());
     }
 
@@ -85,17 +84,16 @@ class OrderEventHandlerTest {
     }
 
     @Test
-    @DisplayName("결제 실패 이벤트 처리 실패해도 예외를 던지지 않는다")
+    @DisplayName("결제 실패 이벤트 처리 실패 시 예외를 전파한다")
     void handlePaymentFailedTest2() {
         // arrange
         PaymentFailedEvent event = createPaymentFailedEvent();
         doThrow(new RuntimeException("DB error"))
                 .when(orderFacade).handlePaymentFailure(event.getUserId(), event.getOrderId());
 
-        // act - 예외 없이 정상 종료
-        orderEventHandler.handlePaymentFailed(event);
-
-        // assert
+        // act & assert - 예외 전파 (Resilience4j @Retry는 통합테스트에서 동작)
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+                () -> orderEventHandler.handlePaymentFailed(event));
         verify(orderFacade, times(1)).handlePaymentFailure(event.getUserId(), event.getOrderId());
     }
 
