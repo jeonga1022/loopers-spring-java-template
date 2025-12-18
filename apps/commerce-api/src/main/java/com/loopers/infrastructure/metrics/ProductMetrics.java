@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "product_metrics")
 public class ProductMetrics {
@@ -21,6 +23,7 @@ public class ProductMetrics {
     private Long likeCount;
     private Long orderCount;
     private Long totalQuantity;
+    private LocalDateTime lastLikeEventAt;
 
     protected ProductMetrics() {
     }
@@ -40,9 +43,28 @@ public class ProductMetrics {
         this.likeCount++;
     }
 
+    public void decrementLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
+    }
+
     public void addOrder(int quantity) {
         this.orderCount++;
         this.totalQuantity += quantity;
+    }
+
+    public boolean updateLikeIfNewer(boolean liked, LocalDateTime eventTime) {
+        if (this.lastLikeEventAt != null && !eventTime.isAfter(this.lastLikeEventAt)) {
+            return false;
+        }
+        if (liked) {
+            incrementLikeCount();
+        } else {
+            decrementLikeCount();
+        }
+        this.lastLikeEventAt = eventTime;
+        return true;
     }
 
     public Long getId() {
@@ -63,5 +85,9 @@ public class ProductMetrics {
 
     public Long getTotalQuantity() {
         return totalQuantity;
+    }
+
+    public LocalDateTime getLastLikeEventAt() {
+        return lastLikeEventAt;
     }
 }
