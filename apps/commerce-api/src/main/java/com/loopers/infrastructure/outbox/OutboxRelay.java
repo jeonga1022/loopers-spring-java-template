@@ -19,6 +19,7 @@ import java.util.List;
 public class OutboxRelay {
 
     public static final String HEADER_OUTBOX_ID = "outbox-id";
+    public static final String HEADER_EVENT_TYPE = "event-type";
     private static final int BATCH_SIZE = 100;
 
     private final OutboxRepository outboxRepository;
@@ -41,6 +42,7 @@ public class OutboxRelay {
                         outbox.getPayload()
                 );
                 record.headers().add(HEADER_OUTBOX_ID, outbox.getId().toString().getBytes(StandardCharsets.UTF_8));
+                record.headers().add(HEADER_EVENT_TYPE, outbox.getEventType().getBytes(StandardCharsets.UTF_8));
 
                 kafkaTemplate.send(record).get();
                 outbox.markProcessed();

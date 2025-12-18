@@ -2,6 +2,7 @@ package com.loopers.infrastructure.consumer;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.loopers.infrastructure.cache.ProductCacheService;
 import com.loopers.infrastructure.idempotent.EventHandled;
 import com.loopers.infrastructure.idempotent.EventHandledRepository;
 import com.loopers.infrastructure.metrics.ProductMetrics;
@@ -26,6 +27,7 @@ public class CatalogEventConsumer {
 
     private final EventHandledRepository eventHandledRepository;
     private final ProductMetricsRepository productMetricsRepository;
+    private final ProductCacheService productCacheService;
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "catalog-events", groupId = "catalog-consumer")
@@ -45,10 +47,11 @@ public class CatalogEventConsumer {
         }
 
         try {
-            processEvent(record.value());
+            String eventType = extractEventType(record);
+            processEvent(eventType, record.value());
             eventHandledRepository.save(EventHandled.create(eventId));
             acknowledgment.acknowledge();
-            log.info("이벤트 처리 완료: eventId={}", eventId);
+            log.info("이벤트 처리 완료: eventId={}, eventType={}", eventId, eventType);
         } catch (Exception e) {
             log.error("이벤트 처리 실패, 재처리 예정: eventId={}", eventId, e);
         }
@@ -62,21 +65,44 @@ public class CatalogEventConsumer {
         return new String(header.value(), StandardCharsets.UTF_8);
     }
 
-    private void processEvent(String payload) {
+    private String extractEventType(ConsumerRecord<String, String> record) {
+        Header header = record.headers().lastHeader(OutboxRelay.HEADER_EVENT_TYPE);
+        if (header == null) {
+            return "Unknown";
+        }
+        return new String(header.value(), StandardCharsets.UTF_8);
+    }
+
+    private void processEvent(String eventType, String payload) {
         try {
             JsonNode node = objectMapper.readTree(payload);
             Long productId = node.get("productId").asLong();
-            boolean liked = node.get("liked").asBoolean();
-            LocalDateTime occurredAt = LocalDateTime.parse(node.get("occurredAt").asText());
 
-            ProductMetrics metrics = productMetricsRepository.findByProductId(productId)
-                    .orElseGet(() -> ProductMetrics.create(productId));
-
-            if (metrics.updateLikeIfNewer(liked, occurredAt)) {
-                productMetricsRepository.save(metrics);
+            switch (eventType) {
+                case "ProductLikedEvent" -> processProductLikedEvent(node, productId);
+                case "StockDepletedEvent" -> processStockDepletedEvent(productId);
+                default -> log.warn("알 수 없는 이벤트 타입: {}", eventType);
             }
         } catch (Exception e) {
             throw new RuntimeException("이벤트 파싱 실패", e);
         }
+    }
+
+    private void processProductLikedEvent(JsonNode node, Long productId) {
+        boolean liked = node.get("liked").asBoolean();
+        LocalDateTime occurredAt = LocalDateTime.parse(node.get("occurredAt").asText());
+
+        ProductMetrics metrics = productMetricsRepository.findByProductId(productId)
+                .orElseGet(() -> ProductMetrics.create(productId));
+
+        if (metrics.updateLikeIfNewer(liked, occurredAt)) {
+            productMetricsRepository.save(metrics);
+        }
+    }
+
+    private void processStockDepletedEvent(Long productId) {
+        productCacheService.deleteProductDetail(productId);
+        productCacheService.invalidateProductListCaches();
+        log.info("재고 소진으로 캐시 무효화: productId={}", productId);
     }
 }

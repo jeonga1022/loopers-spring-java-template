@@ -1,7 +1,7 @@
 package com.loopers.infrastructure.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.loopers.infrastructure.idempotent.EventHandled;
+import com.loopers.infrastructure.cache.ProductCacheService;
 import com.loopers.infrastructure.idempotent.EventHandledRepository;
 import com.loopers.infrastructure.metrics.ProductMetrics;
 import com.loopers.infrastructure.metrics.ProductMetricsRepository;
@@ -35,6 +35,9 @@ class CatalogEventConsumerTest {
     private ProductMetricsRepository productMetricsRepository;
 
     @Mock
+    private ProductCacheService productCacheService;
+
+    @Mock
     private Acknowledgment acknowledgment;
 
     private CatalogEventConsumer consumer;
@@ -43,7 +46,7 @@ class CatalogEventConsumerTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        consumer = new CatalogEventConsumer(eventHandledRepository, productMetricsRepository, objectMapper);
+        consumer = new CatalogEventConsumer(eventHandledRepository, productMetricsRepository, productCacheService, objectMapper);
     }
 
     @Test
@@ -116,9 +119,50 @@ class CatalogEventConsumerTest {
         verify(productMetricsRepository, times(1)).save(any());
     }
 
+    @Test
+    @DisplayName("재고 소진 이벤트 수신 시 상품 캐시를 무효화한다")
+    void consumeTest5() {
+        String payload = "{\"productId\":1,\"occurredAt\":\"2024-01-01T10:00:00\"}";
+        ConsumerRecord<String, String> record = createRecord("1", payload, "200", "StockDepletedEvent");
+        when(eventHandledRepository.existsByEventId("200")).thenReturn(false);
+
+        consumer.consume(record, acknowledgment);
+
+        verify(productCacheService).deleteProductDetail(1L);
+        verify(productCacheService).invalidateProductListCaches();
+        verify(eventHandledRepository).save(argThat(e -> e.getEventId().equals("200")));
+        verify(acknowledgment).acknowledge();
+    }
+
+    @Test
+    @DisplayName("동일 메시지 재전송 시 최종 결과는 한 번만 반영된다")
+    void consumeTest6() {
+        String payload = "{\"productId\":1,\"userId\":100,\"liked\":true,\"occurredAt\":\"2024-01-01T10:00:00\"}";
+        ConsumerRecord<String, String> firstRecord = createRecord("1:100", payload, "300");
+        ConsumerRecord<String, String> duplicateRecord = createRecord("1:100", payload, "300");
+
+        when(eventHandledRepository.existsByEventId("300"))
+                .thenReturn(false)
+                .thenReturn(true);
+        when(productMetricsRepository.findByProductId(1L)).thenReturn(Optional.empty());
+
+        consumer.consume(firstRecord, acknowledgment);
+        consumer.consume(duplicateRecord, acknowledgment);
+
+        verify(eventHandledRepository, times(1)).save(any());
+        verify(productMetricsRepository, times(1)).save(argThat(m ->
+                m.getProductId().equals(1L) && m.getLikeCount() == 1L));
+        verify(acknowledgment, times(2)).acknowledge();
+    }
+
     private ConsumerRecord<String, String> createRecord(String key, String value, String outboxId) {
+        return createRecord(key, value, outboxId, "ProductLikedEvent");
+    }
+
+    private ConsumerRecord<String, String> createRecord(String key, String value, String outboxId, String eventType) {
         RecordHeaders headers = new RecordHeaders();
         headers.add("outbox-id", outboxId.getBytes(StandardCharsets.UTF_8));
+        headers.add("event-type", eventType.getBytes(StandardCharsets.UTF_8));
         return new ConsumerRecord<>("catalog-events", 0, 0, 0L, null, 0, 0, key, value, headers, Optional.empty());
     }
 }

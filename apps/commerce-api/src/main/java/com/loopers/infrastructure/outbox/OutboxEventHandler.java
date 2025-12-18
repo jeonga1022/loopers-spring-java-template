@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loopers.domain.like.event.ProductLikedEvent;
 import com.loopers.domain.order.event.OrderCompletedEvent;
+import com.loopers.domain.product.event.StockDepletedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -35,6 +36,18 @@ public class OutboxEventHandler {
                 event.getOrderId().toString(),
                 "OrderCompletedEvent",
                 "order-events",
+                toJson(event)
+        );
+        outboxRepository.save(outbox);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    public void handleStockDepletedEvent(StockDepletedEvent event) {
+        Outbox outbox = Outbox.create(
+                "PRODUCT",
+                event.getProductId().toString(),
+                "StockDepletedEvent",
+                "catalog-events",
                 toJson(event)
         );
         outboxRepository.save(outbox);
