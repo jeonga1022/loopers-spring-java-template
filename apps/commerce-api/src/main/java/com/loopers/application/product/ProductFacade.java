@@ -7,6 +7,7 @@ import com.loopers.domain.product.ProductDomainService;
 import com.loopers.domain.product.ProductSortType;
 import com.loopers.infrastructure.cache.ProductCacheService;
 import com.loopers.infrastructure.cache.ProductDetailCache;
+import com.loopers.infrastructure.event.ViewEventPublisher;
 import com.loopers.interfaces.api.product.ProductDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,6 +27,7 @@ public class ProductFacade {
     private final ProductDomainService productDomainService;
     private final BrandDomainService brandDomainService;
     private final ProductCacheService productCacheService;
+    private final ViewEventPublisher viewEventPublisher;
 
     /**
      * 상품 목록 조회 (Cache-Aside 패턴)
@@ -76,6 +78,9 @@ public class ProductFacade {
     public ProductDto.ProductDetailResponse getProduct(Long productId) {
         // 1. 캐시 조회 시도
         Optional<ProductDetailCache> cachedDetail = productCacheService.getProductDetail(productId);
+
+        // 2. 조회 이벤트 발행 (캐시 히트 여부와 무관하게)
+        viewEventPublisher.publish(productId);
 
         if (cachedDetail.isPresent()) {
             // Cache Hit: 캐시된 데이터 직접 반환
