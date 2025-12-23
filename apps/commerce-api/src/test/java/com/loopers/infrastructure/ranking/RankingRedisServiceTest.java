@@ -12,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 @SpringBootTest
 class RankingRedisServiceTest {
@@ -86,5 +87,16 @@ class RankingRedisServiceTest {
         // assert
         Double score = redisTemplate.opsForZSet().score(KEY, "1");
         assertThat(score).isEqualTo(0.2);
+    }
+
+    @Test
+    @DisplayName("주문 시 수량 * 0.6점을 증가시킨다")
+    void incrementScoreForOrder() {
+        // act - 3개 주문
+        rankingRedisService.incrementScoreForOrder(TODAY, 1L, 3);
+
+        // assert - 0.6 * 3 = 1.8
+        Double score = redisTemplate.opsForZSet().score(KEY, "1");
+        assertThat(score).isCloseTo(1.8, within(0.0001));  // 부동소수점 오차 허용
     }
 }
