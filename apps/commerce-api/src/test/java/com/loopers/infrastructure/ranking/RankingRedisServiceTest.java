@@ -76,4 +76,15 @@ class RankingRedisServiceTest {
         Double score = redisTemplate.opsForZSet().score(KEY, "1");
         assertThat(score).isEqualTo(3.1);
     }
+
+    @Test
+    @DisplayName("좋아요 시 0.2점을 증가시킨다")
+    void incrementScoreForLike() {
+        // act
+        rankingRedisService.incrementScoreForLike(TODAY, 1L);
+
+        // assert
+        Double score = redisTemplate.opsForZSet().score(KEY, "1");
+        assertThat(score).isEqualTo(0.2);
+    }
 }

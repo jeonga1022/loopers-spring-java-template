@@ -21,6 +21,7 @@ public class RankingRedisService {
     private final RedisTemplate<String, String> redisTemplate;
 
     private static final double VIEW_SCORE = 0.1;
+    private static final double LIKE_SCORE = 0.2;
 
     public List<RankingEntry> getTopProducts(LocalDate date, int offset, int limit) {
         String key = generateKey(date);
@@ -42,6 +43,11 @@ public class RankingRedisService {
     public void incrementScoreForView(LocalDate date, Long productId) {
         String key = generateKey(date);
         redisTemplate.opsForZSet().incrementScore(key, String.valueOf(productId), VIEW_SCORE);
+    }
+
+    public void incrementScoreForLike(LocalDate date, Long productId) {
+        String key = generateKey(date);
+        redisTemplate.opsForZSet().incrementScore(key, String.valueOf(productId), LIKE_SCORE);
     }
 
     private String generateKey(LocalDate date) {
