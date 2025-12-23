@@ -42,8 +42,12 @@ public class RankingRedisService {
     }
 
     public void incrementScoreForView(LocalDate date, Long productId) {
+        incrementScoreForView(date, productId, 1);
+    }
+
+    public void incrementScoreForView(LocalDate date, Long productId, int count) {
         String key = generateKey(date);
-        redisTemplate.opsForZSet().incrementScore(key, String.valueOf(productId), VIEW_SCORE);
+        redisTemplate.opsForZSet().incrementScore(key, String.valueOf(productId), VIEW_SCORE * count);
     }
 
     public void incrementScoreForLike(LocalDate date, Long productId) {

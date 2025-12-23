@@ -1,6 +1,8 @@
 package com.loopers.domain.product;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
 
-public interface ProductViewLogRepository extends JpaRepository<ProductViewLog, Long> {
+public interface ProductViewLogRepository {
+
+    List<ProductViewLog> saveAll(List<ProductViewLog> logs);
 }
