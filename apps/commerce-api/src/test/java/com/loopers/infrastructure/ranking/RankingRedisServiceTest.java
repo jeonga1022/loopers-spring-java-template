@@ -99,4 +99,16 @@ class RankingRedisServiceTest {
         Double score = redisTemplate.opsForZSet().score(KEY, "1");
         assertThat(score).isCloseTo(1.8, within(0.0001));  // 부동소수점 오차 허용
     }
+
+    @Test
+    @DisplayName("점수 증가 시 TTL이 2일로 설정된다")
+    void incrementScore_setsTTL() {
+        // act
+        rankingRedisService.incrementScoreForView(TODAY, 1L);
+
+        // assert - TTL이 설정되어 있어야 함 (2일 = 172800초, 약간의 오차 허용)
+        Long ttl = redisTemplate.getExpire(KEY);
+        assertThat(ttl).isGreaterThan(172800 - 60);  // 최소 2일 - 1분
+        assertThat(ttl).isLessThanOrEqualTo(172800); // 최대 2일
+    }
 }

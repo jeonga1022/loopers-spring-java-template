@@ -3,6 +3,7 @@ package com.loopers.infrastructure.ranking;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -17,6 +18,13 @@ public class RankingRedisService {
 
     private static final String KEY_PREFIX = "ranking:all:";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final long TTL_SECONDS = 172800; // 2일
+
+    private static final String ZINCRBY_WITH_EXPIRE_SCRIPT = """
+            redis.call('ZINCRBY', KEYS[1], ARGV[1], ARGV[2])
+            redis.call('EXPIRE', KEYS[1], ARGV[3])
+            return 1
+            """;
 
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -47,17 +55,22 @@ public class RankingRedisService {
 
     public void incrementScoreForView(LocalDate date, Long productId, int count) {
         String key = generateKey(date);
-        redisTemplate.opsForZSet().incrementScore(key, String.valueOf(productId), VIEW_SCORE * count);
+        executeIncrementWithExpire(key, String.valueOf(productId), VIEW_SCORE * count);
     }
 
     public void incrementScoreForLike(LocalDate date, Long productId) {
         String key = generateKey(date);
-        redisTemplate.opsForZSet().incrementScore(key, String.valueOf(productId), LIKE_SCORE);
+        executeIncrementWithExpire(key, String.valueOf(productId), LIKE_SCORE);
     }
 
     public void incrementScoreForOrder(LocalDate date, Long productId, int quantity) {
         String key = generateKey(date);
-        redisTemplate.opsForZSet().incrementScore(key, String.valueOf(productId), ORDER_SCORE * quantity);
+        executeIncrementWithExpire(key, String.valueOf(productId), ORDER_SCORE * quantity);
+    }
+
+    private void executeIncrementWithExpire(String key, String member, double score) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(ZINCRBY_WITH_EXPIRE_SCRIPT, Long.class);
+        redisTemplate.execute(script, List.of(key), String.valueOf(score), member, String.valueOf(TTL_SECONDS));
     }
 
     private String generateKey(LocalDate date) {
