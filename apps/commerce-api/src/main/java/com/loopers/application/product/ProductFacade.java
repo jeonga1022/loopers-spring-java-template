@@ -8,12 +8,14 @@ import com.loopers.domain.product.ProductSortType;
 import com.loopers.infrastructure.cache.ProductCacheService;
 import com.loopers.infrastructure.cache.ProductDetailCache;
 import com.loopers.infrastructure.event.ViewEventPublisher;
+import com.loopers.infrastructure.ranking.RankingRedisService;
 import com.loopers.interfaces.api.product.ProductDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -28,6 +30,7 @@ public class ProductFacade {
     private final BrandDomainService brandDomainService;
     private final ProductCacheService productCacheService;
     private final ViewEventPublisher viewEventPublisher;
+    private final RankingRedisService rankingRedisService;
 
     /**
      * 상품 목록 조회 (Cache-Aside 패턴)
@@ -82,11 +85,15 @@ public class ProductFacade {
         // 2. 조회 이벤트 발행 (캐시 히트 여부와 무관하게)
         viewEventPublisher.publish(productId);
 
+        // 3. 순위 조회
+        Long rank = rankingRedisService.getRankingPosition(LocalDate.now(), productId);
+
         if (cachedDetail.isPresent()) {
             // Cache Hit: 캐시된 데이터 직접 반환
             return ProductDto.ProductDetailResponse.from(
                     productId,
-                    cachedDetail.get()
+                    cachedDetail.get(),
+                    rank
             );
         }
 
@@ -99,6 +106,6 @@ public class ProductFacade {
         productCacheService.setProductDetail(productId, cache);
 
         // Response 반환
-        return ProductDto.ProductDetailResponse.from(productId, cache);
+        return ProductDto.ProductDetailResponse.from(productId, cache, rank);
     }
 }
