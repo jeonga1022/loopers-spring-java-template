@@ -4,8 +4,11 @@ import java.time.LocalDateTime;
 
 public class StockDepletedEvent {
 
-    private final Long productId;
-    private final LocalDateTime occurredAt;
+    private Long productId;
+    private LocalDateTime occurredAt;
+
+    protected StockDepletedEvent() {
+    }
 
     private StockDepletedEvent(Long productId) {
         this.productId = productId;

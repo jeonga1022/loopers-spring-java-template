@@ -63,7 +63,7 @@ public class RankingRedisService {
         executeIncrementWithExpire(key, String.valueOf(productId), LIKE_SCORE);
     }
 
-    public void incrementScoreForOrder(LocalDate date, Long productId, int quantity) {
+    public void incrementScoreForOrder(LocalDate date, Long productId, Long quantity) {
         String key = generateKey(date);
         executeIncrementWithExpire(key, String.valueOf(productId), ORDER_SCORE * quantity);
     }

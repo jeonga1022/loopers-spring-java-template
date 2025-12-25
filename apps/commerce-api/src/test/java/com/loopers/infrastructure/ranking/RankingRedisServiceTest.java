@@ -93,7 +93,7 @@ class RankingRedisServiceTest {
     @DisplayName("주문 시 수량 * 0.6점을 증가시킨다")
     void incrementScoreForOrder() {
         // act - 3개 주문
-        rankingRedisService.incrementScoreForOrder(TODAY, 1L, 3);
+        rankingRedisService.incrementScoreForOrder(TODAY, 1L, 3L);
 
         // assert - 0.6 * 3 = 1.8
         Double score = redisTemplate.opsForZSet().score(KEY, "1");

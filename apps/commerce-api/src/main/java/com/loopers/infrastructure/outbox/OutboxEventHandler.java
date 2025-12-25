@@ -47,7 +47,7 @@ public class OutboxEventHandler {
                 "PRODUCT",
                 event.getProductId().toString(),
                 "StockDepletedEvent",
-                "catalog-events",
+                "stock-depleted",
                 toJson(event)
         );
         outboxRepository.save(outbox);
