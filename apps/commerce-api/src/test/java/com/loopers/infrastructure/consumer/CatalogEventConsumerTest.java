@@ -5,6 +5,7 @@ import com.loopers.infrastructure.cache.ProductCacheService;
 import com.loopers.infrastructure.idempotent.EventHandledRepository;
 import com.loopers.infrastructure.metrics.ProductMetrics;
 import com.loopers.infrastructure.metrics.ProductMetricsRepository;
+import com.loopers.infrastructure.ranking.RankingRedisService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.support.Acknowledgment;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -38,6 +40,9 @@ class CatalogEventConsumerTest {
     private ProductCacheService productCacheService;
 
     @Mock
+    private RankingRedisService rankingRedisService;
+
+    @Mock
     private Acknowledgment acknowledgment;
 
     private CatalogEventConsumer consumer;
@@ -46,11 +51,11 @@ class CatalogEventConsumerTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        consumer = new CatalogEventConsumer(eventHandledRepository, productMetricsRepository, productCacheService, objectMapper);
+        consumer = new CatalogEventConsumer(eventHandledRepository, productMetricsRepository, productCacheService, rankingRedisService, objectMapper);
     }
 
     @Test
-    @DisplayName("좋아요 이벤트 수신 시 ProductMetrics의 likeCount를 증가시킨다")
+    @DisplayName("좋아요 이벤트 수신 시 ProductMetrics의 likeCount를 증가시키고 랭킹 점수를 올린다")
     void consumeTest1() {
         String payload = "{\"productId\":1,\"userId\":100,\"liked\":true,\"occurredAt\":\"2024-01-01T10:00:00\"}";
         ConsumerRecord<String, String> record = createRecord("1", payload, "100");
@@ -61,11 +66,12 @@ class CatalogEventConsumerTest {
 
         verify(eventHandledRepository).save(argThat(e -> e.getEventId().equals("100")));
         verify(productMetricsRepository).save(argThat(m -> m.getProductId().equals(1L) && m.getLikeCount() == 1L));
+        verify(rankingRedisService).incrementScoreForLike(any(LocalDate.class), argThat(id -> id.equals(1L)));
         verify(acknowledgment).acknowledge();
     }
 
     @Test
-    @DisplayName("좋아요 취소 이벤트 수신 시 ProductMetrics의 likeCount를 감소시킨다")
+    @DisplayName("좋아요 취소 이벤트 수신 시 ProductMetrics의 likeCount를 감소시키지만 랭킹 점수는 변경하지 않는다")
     void consumeTest2() {
         String payload = "{\"productId\":1,\"userId\":100,\"liked\":false,\"occurredAt\":\"2024-01-01T12:00:00\"}";
         ConsumerRecord<String, String> record = createRecord("1", payload, "101");
@@ -79,6 +85,7 @@ class CatalogEventConsumerTest {
         consumer.consume(record, acknowledgment);
 
         verify(productMetricsRepository).save(argThat(m -> m.getLikeCount() == 1L));
+        verify(rankingRedisService, never()).incrementScoreForLike(any(), any());
         verify(acknowledgment).acknowledge();
     }
 

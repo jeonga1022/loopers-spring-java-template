@@ -23,7 +23,7 @@ public class OutboxEventHandler {
                 "PRODUCT",
                 event.getProductId().toString(),
                 "ProductLikedEvent",
-                "catalog-events",
+                "product-liked",
                 toJson(event)
         );
         outboxRepository.save(outbox);

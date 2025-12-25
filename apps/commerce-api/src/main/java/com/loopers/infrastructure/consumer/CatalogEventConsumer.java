@@ -8,6 +8,7 @@ import com.loopers.infrastructure.idempotent.EventHandledRepository;
 import com.loopers.infrastructure.metrics.ProductMetrics;
 import com.loopers.infrastructure.metrics.ProductMetricsRepository;
 import com.loopers.infrastructure.outbox.OutboxRelay;
+import com.loopers.infrastructure.ranking.RankingRedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -28,6 +29,7 @@ public class CatalogEventConsumer {
     private final EventHandledRepository eventHandledRepository;
     private final ProductMetricsRepository productMetricsRepository;
     private final ProductCacheService productCacheService;
+    private final RankingRedisService rankingRedisService;
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "catalog-events", groupId = "catalog-consumer")
@@ -97,6 +99,10 @@ public class CatalogEventConsumer {
 
         if (metrics.updateLikeIfNewer(liked, occurredAt)) {
             productMetricsRepository.save(metrics);
+        }
+
+        if (liked) {
+            rankingRedisService.incrementScoreForLike(occurredAt.toLocalDate(), productId);
         }
     }
 
