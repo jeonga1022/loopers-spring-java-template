@@ -68,6 +68,21 @@ public class RankingRedisService {
         executeIncrementWithExpire(key, String.valueOf(productId), ORDER_SCORE * quantity);
     }
 
+    public Long getRankingPosition(LocalDate date, Long productId) {
+        String key = generateKey(date);
+        Long rank = redisTemplate.opsForZSet().reverseRank(key, String.valueOf(productId));
+        if (rank == null) {
+            return null;
+        }
+        return rank + 1;
+    }
+
+    public long getTotalCount(LocalDate date) {
+        String key = generateKey(date);
+        Long count = redisTemplate.opsForZSet().zCard(key);
+        return count != null ? count : 0;
+    }
+
     private void executeIncrementWithExpire(String key, String member, double score) {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>(ZINCRBY_WITH_EXPIRE_SCRIPT, Long.class);
         redisTemplate.execute(script, List.of(key), String.valueOf(score), member, String.valueOf(TTL_SECONDS));

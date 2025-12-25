@@ -111,4 +111,55 @@ class RankingRedisServiceTest {
         assertThat(ttl).isGreaterThan(172800 - 60);  // 최소 2일 - 1분
         assertThat(ttl).isLessThanOrEqualTo(172800); // 최대 2일
     }
+
+    @Test
+    @DisplayName("특정 상품의 순위를 조회한다 (1-based)")
+    void getRankingPosition() {
+        // arrange
+        redisTemplate.opsForZSet().add(KEY, "1", 3.0);  // 상품1: 3점 -> 2위
+        redisTemplate.opsForZSet().add(KEY, "2", 5.0);  // 상품2: 5점 -> 1위
+        redisTemplate.opsForZSet().add(KEY, "3", 1.0);  // 상품3: 1점 -> 3위
+
+        // act & assert
+        assertThat(rankingRedisService.getRankingPosition(TODAY, 2L)).isEqualTo(1L);
+        assertThat(rankingRedisService.getRankingPosition(TODAY, 1L)).isEqualTo(2L);
+        assertThat(rankingRedisService.getRankingPosition(TODAY, 3L)).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("랭킹에 없는 상품은 null을 반환한다")
+    void getRankingPosition_notFound() {
+        // arrange - 상품 999는 랭킹에 없음
+
+        // act
+        Long position = rankingRedisService.getRankingPosition(TODAY, 999L);
+
+        // assert
+        assertThat(position).isNull();
+    }
+
+    @Test
+    @DisplayName("랭킹에 등록된 전체 상품 수를 조회한다")
+    void getTotalCount() {
+        // arrange
+        redisTemplate.opsForZSet().add(KEY, "1", 3.0);
+        redisTemplate.opsForZSet().add(KEY, "2", 5.0);
+        redisTemplate.opsForZSet().add(KEY, "3", 1.0);
+
+        // act
+        long count = rankingRedisService.getTotalCount(TODAY);
+
+        // assert
+        assertThat(count).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("랭킹이 비어있으면 0을 반환한다")
+    void getTotalCount_empty() {
+        // act
+        long count = rankingRedisService.getTotalCount(TODAY);
+
+        // assert
+        assertThat(count).isEqualTo(0);
+    }
 }
