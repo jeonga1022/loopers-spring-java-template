@@ -4,8 +4,11 @@ import java.time.LocalDateTime;
 
 public class ProductViewedEvent {
 
-    private final Long productId;
-    private final LocalDateTime occurredAt;
+    private Long productId;
+    private LocalDateTime occurredAt;
+
+    protected ProductViewedEvent() {
+    }
 
     private ProductViewedEvent(Long productId) {
         this.productId = productId;
