@@ -120,9 +120,9 @@ sequenceDiagram
     Service->>+Redis: ZINCRBY ranking:all:20251222 {score} {productId}
     Redis-->>-Service: newScore
 
-    opt 최초 적재 시
+    alt 키가 새로 생성된 경우
         Service->>+Redis: EXPIRE ranking:all:20251222 172800
-        Note over Redis: TTL: 2일 (172,800초)
+        Note over Redis: TTL: 2일 (키 생성 시 한 번만)
         Redis-->>-Service: OK
     end
 ~~~

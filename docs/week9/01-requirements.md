@@ -106,7 +106,7 @@ Redis ZSET을 이용한 실시간 랭킹 시스템 구축
 | KEY 형식 | `ranking:all:{yyyyMMdd}` | 일별 분리 |
 | Member | productId (String) | ZSET member |
 | Score | 가중치 합산 점수 | double |
-| TTL | 2일 (172,800초) | 메모리 관리 |
+| TTL | 2일 (172,800초) | 키 생성 시 한 번만 설정 |
 
 ### 4.2 Consumer 구성
 
