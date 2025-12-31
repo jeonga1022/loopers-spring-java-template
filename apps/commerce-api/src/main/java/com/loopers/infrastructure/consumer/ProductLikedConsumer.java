@@ -15,6 +15,8 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -48,15 +50,16 @@ public class ProductLikedConsumer {
     }
 
     private void processProductLikedEvent(ProductLikedEvent event) {
-        ProductMetrics metrics = productMetricsRepository.findByProductId(event.getProductId())
-                .orElseGet(() -> ProductMetrics.create(event.getProductId()));
+        LocalDate eventDate = event.getOccurredAt().toLocalDate();
+        ProductMetrics metrics = productMetricsRepository.findByProductIdAndDate(event.getProductId(), eventDate)
+                .orElseGet(() -> ProductMetrics.create(event.getProductId(), eventDate));
 
         if (metrics.updateLikeIfNewer(event.isLiked(), event.getOccurredAt())) {
             productMetricsRepository.save(metrics);
         }
 
         if (event.isLiked()) {
-            rankingRedisService.incrementScoreForLike(event.getOccurredAt().toLocalDate(), event.getProductId());
+            rankingRedisService.incrementScoreForLike(eventDate, event.getProductId());
         }
     }
 }

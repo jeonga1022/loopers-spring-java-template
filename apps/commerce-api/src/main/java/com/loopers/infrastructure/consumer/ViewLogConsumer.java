@@ -4,12 +4,15 @@ import com.loopers.confg.kafka.KafkaConfig;
 import com.loopers.domain.product.ProductViewLog;
 import com.loopers.domain.product.ProductViewLogRepository;
 import com.loopers.domain.product.event.ProductViewedEvent;
+import com.loopers.infrastructure.metrics.ProductMetrics;
+import com.loopers.infrastructure.metrics.ProductMetricsRepository;
 import com.loopers.infrastructure.ranking.RankingRedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,6 +25,7 @@ import java.util.stream.Collectors;
 public class ViewLogConsumer {
 
     private final ProductViewLogRepository viewLogRepository;
+    private final ProductMetricsRepository productMetricsRepository;
     private final RankingRedisService rankingRedisService;
 
     @KafkaListener(
@@ -29,6 +33,7 @@ public class ViewLogConsumer {
             groupId = "view-log-consumer",
             containerFactory = KafkaConfig.BATCH_LISTENER
     )
+    @Transactional
     public void consumeBatch(List<ProductViewedEvent> events, Acknowledgment ack) {
         if (events.isEmpty()) {
             ack.acknowledge();
@@ -42,7 +47,7 @@ public class ViewLogConsumer {
                     .toList();
             viewLogRepository.saveAll(logs);
 
-            // 2. Redis 업데이트 (상품별로 그룹핑해서 한 번에)
+            // 2. 상품별로 그룹핑
             LocalDate today = LocalDate.now();
             Map<Long, Long> viewCountByProduct = events.stream()
                     .collect(Collectors.groupingBy(
@@ -50,9 +55,19 @@ public class ViewLogConsumer {
                             Collectors.counting()
                     ));
 
+            // 3. ProductMetrics 업데이트 + Redis 업데이트
             for (Map.Entry<Long, Long> entry : viewCountByProduct.entrySet()) {
                 Long productId = entry.getKey();
                 int count = entry.getValue().intValue();
+
+                ProductMetrics metrics = productMetricsRepository.findByProductIdAndDate(productId, today)
+                        .orElseGet(() -> ProductMetrics.create(productId, today));
+
+                for (int i = 0; i < count; i++) {
+                    metrics.incrementViewCount();
+                }
+                productMetricsRepository.save(metrics);
+
                 rankingRedisService.incrementScoreForView(today, productId, count);
             }
 
@@ -60,7 +75,6 @@ public class ViewLogConsumer {
             log.info("조회 로그 배치 처리 완료: {}건, 상품 {}종", events.size(), viewCountByProduct.size());
         } catch (Exception e) {
             log.error("조회 로그 배치 처리 실패: {}건", events.size(), e);
-            // ack 안 하면 재처리됨
         }
     }
 }

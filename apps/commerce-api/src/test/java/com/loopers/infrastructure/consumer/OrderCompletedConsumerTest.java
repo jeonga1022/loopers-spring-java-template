@@ -4,6 +4,7 @@ import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.event.OrderCompletedEvent;
 import com.loopers.infrastructure.idempotent.EventHandledRepository;
+import com.loopers.infrastructure.metrics.ProductMetricsRepository;
 import com.loopers.infrastructure.ranking.RankingRedisService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,12 +17,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,6 +31,9 @@ class OrderCompletedConsumerTest {
 
     @Mock
     private EventHandledRepository eventHandledRepository;
+
+    @Mock
+    private ProductMetricsRepository productMetricsRepository;
 
     @Mock
     private RankingRedisService rankingRedisService;
@@ -41,11 +45,11 @@ class OrderCompletedConsumerTest {
 
     @BeforeEach
     void setUp() {
-        consumer = new OrderCompletedConsumer(eventHandledRepository, rankingRedisService);
+        consumer = new OrderCompletedConsumer(eventHandledRepository, productMetricsRepository, rankingRedisService);
     }
 
     @Test
-    @DisplayName("주문 완료 이벤트 수신 시 주문한 상품들의 랭킹 점수를 올린다")
+    @DisplayName("주문 완료 이벤트 수신 시 주문한 상품들의 랭킹 점수를 올리고 ProductMetrics에 저장한다")
     void consumeTest1() {
         OrderItem item1 = OrderItem.create(1L, "상품1", 2L, 10000);
         OrderItem item2 = OrderItem.create(2L, "상품2", 3L, 20000);
@@ -53,12 +57,18 @@ class OrderCompletedConsumerTest {
         ReflectionTestUtils.setField(order, "id", 100L);
 
         OrderCompletedEvent event = OrderCompletedEvent.from(order);
+        LocalDate eventDate = event.getOccurredAt().toLocalDate();
+
         when(eventHandledRepository.existsByEventId("300")).thenReturn(false);
+        when(productMetricsRepository.findByProductIdAndDate(eq(1L), eq(eventDate))).thenReturn(Optional.empty());
+        when(productMetricsRepository.findByProductIdAndDate(eq(2L), eq(eventDate))).thenReturn(Optional.empty());
 
         consumer.consume(event, "300", acknowledgment);
 
-        verify(rankingRedisService).incrementScoreForOrder(any(LocalDate.class), eq(1L), eq(2L));
-        verify(rankingRedisService).incrementScoreForOrder(any(LocalDate.class), eq(2L), eq(3L));
+        verify(productMetricsRepository).save(argThat(m -> m.getProductId().equals(1L) && m.getOrderCount() == 1L && m.getTotalQuantity() == 2L));
+        verify(productMetricsRepository).save(argThat(m -> m.getProductId().equals(2L) && m.getOrderCount() == 1L && m.getTotalQuantity() == 3L));
+        verify(rankingRedisService).incrementScoreForOrder(eq(eventDate), eq(1L), eq(2L));
+        verify(rankingRedisService).incrementScoreForOrder(eq(eventDate), eq(2L), eq(3L));
         verify(eventHandledRepository).save(argThat(e -> e.getEventId().equals("300")));
         verify(acknowledgment).acknowledge();
     }
@@ -75,6 +85,7 @@ class OrderCompletedConsumerTest {
 
         consumer.consume(event, "300", acknowledgment);
 
+        verify(productMetricsRepository, never()).save(any());
         verify(rankingRedisService, never()).incrementScoreForOrder(any(), any(), any(Long.class));
         verify(eventHandledRepository, never()).save(any());
         verify(acknowledgment).acknowledge();

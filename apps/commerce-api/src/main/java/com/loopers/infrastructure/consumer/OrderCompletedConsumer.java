@@ -3,6 +3,8 @@ package com.loopers.infrastructure.consumer;
 import com.loopers.domain.order.event.OrderCompletedEvent;
 import com.loopers.infrastructure.idempotent.EventHandled;
 import com.loopers.infrastructure.idempotent.EventHandledRepository;
+import com.loopers.infrastructure.metrics.ProductMetrics;
+import com.loopers.infrastructure.metrics.ProductMetricsRepository;
 import com.loopers.infrastructure.ranking.RankingRedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,12 +15,15 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OrderCompletedConsumer {
 
     private final EventHandledRepository eventHandledRepository;
+    private final ProductMetricsRepository productMetricsRepository;
     private final RankingRedisService rankingRedisService;
 
     @KafkaListener(topics = "order-events", groupId = "order-completed-consumer")
@@ -45,12 +50,16 @@ public class OrderCompletedConsumer {
     }
 
     private void processOrderCompletedEvent(OrderCompletedEvent event) {
+        LocalDate eventDate = event.getOccurredAt().toLocalDate();
+
         for (OrderCompletedEvent.OrderItemInfo item : event.getItems()) {
-            rankingRedisService.incrementScoreForOrder(
-                    event.getOccurredAt().toLocalDate(),
-                    item.getProductId(),
-                    item.getQuantity()
-            );
+            ProductMetrics metrics = productMetricsRepository.findByProductIdAndDate(item.getProductId(), eventDate)
+                    .orElseGet(() -> ProductMetrics.create(item.getProductId(), eventDate));
+
+            metrics.addOrder(item.getQuantity().intValue());
+            productMetricsRepository.save(metrics);
+
+            rankingRedisService.incrementScoreForOrder(eventDate, item.getProductId(), item.getQuantity());
         }
     }
 }

@@ -14,10 +14,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.support.Acknowledgment;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,14 +50,16 @@ class ProductLikedConsumerTest {
     @DisplayName("좋아요 이벤트 수신 시 ProductMetrics의 likeCount를 증가시키고 랭킹 점수를 올린다")
     void consumeTest1() {
         ProductLikedEvent event = ProductLikedEvent.liked(1L, 100L);
+        LocalDate eventDate = event.getOccurredAt().toLocalDate();
+
         when(eventHandledRepository.existsByEventId("100")).thenReturn(false);
-        when(productMetricsRepository.findByProductId(1L)).thenReturn(Optional.empty());
+        when(productMetricsRepository.findByProductIdAndDate(eq(1L), eq(eventDate))).thenReturn(Optional.empty());
 
         consumer.consume(event, "100", acknowledgment);
 
         verify(eventHandledRepository).save(argThat(e -> e.getEventId().equals("100")));
         verify(productMetricsRepository).save(argThat(m -> m.getProductId().equals(1L) && m.getLikeCount() == 1L));
-        verify(rankingRedisService).incrementScoreForLike(any(LocalDate.class), argThat(id -> id.equals(1L)));
+        verify(rankingRedisService).incrementScoreForLike(eq(eventDate), eq(1L));
         verify(acknowledgment).acknowledge();
     }
 
@@ -63,12 +67,14 @@ class ProductLikedConsumerTest {
     @DisplayName("좋아요 취소 이벤트 수신 시 ProductMetrics의 likeCount를 감소시키지만 랭킹 점수는 변경하지 않는다")
     void consumeTest2() {
         ProductLikedEvent event = ProductLikedEvent.unliked(1L, 100L);
-        ProductMetrics existingMetrics = ProductMetrics.create(1L);
-        existingMetrics.updateLikeIfNewer(true, java.time.LocalDateTime.of(2024, 1, 1, 10, 0));
-        existingMetrics.updateLikeIfNewer(true, java.time.LocalDateTime.of(2024, 1, 1, 11, 0));
+        LocalDate eventDate = event.getOccurredAt().toLocalDate();
+
+        ProductMetrics existingMetrics = ProductMetrics.create(1L, eventDate);
+        existingMetrics.updateLikeIfNewer(true, LocalDateTime.of(2024, 1, 1, 10, 0));
+        existingMetrics.updateLikeIfNewer(true, LocalDateTime.of(2024, 1, 1, 11, 0));
 
         when(eventHandledRepository.existsByEventId("101")).thenReturn(false);
-        when(productMetricsRepository.findByProductId(1L)).thenReturn(Optional.of(existingMetrics));
+        when(productMetricsRepository.findByProductIdAndDate(eq(1L), eq(eventDate))).thenReturn(Optional.of(existingMetrics));
 
         consumer.consume(event, "101", acknowledgment);
 
