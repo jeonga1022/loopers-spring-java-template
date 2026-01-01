@@ -17,11 +17,12 @@ public class RankingController {
 
     @GetMapping
     public ApiResponse<RankingDto.RankingListResponse> getRankings(
+            @RequestParam(defaultValue = "daily") String period,
             @RequestParam(required = false) String date,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        RankingDto.RankingListResponse response = rankingFacade.getRankings(date, page, size);
+        RankingDto.RankingListResponse response = rankingFacade.getRankings(period, date, page, size);
         return ApiResponse.success(response);
     }
 }

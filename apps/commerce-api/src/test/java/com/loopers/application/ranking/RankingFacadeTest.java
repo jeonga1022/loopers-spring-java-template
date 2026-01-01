@@ -74,7 +74,7 @@ class RankingFacadeTest {
         rankingRedisService.incrementScoreForOrder(TODAY, product3.getId(), 1L); // 0.6점
 
         // act
-        RankingDto.RankingListResponse response = rankingFacade.getRankings(null, 0, 20);
+        RankingDto.RankingListResponse response = rankingFacade.getRankings("daily", null, 0, 20);
 
         // assert
         assertThat(response.content()).hasSize(3);
@@ -94,7 +94,7 @@ class RankingFacadeTest {
         rankingRedisService.incrementScoreForView(TODAY, product3.getId());
 
         // act
-        RankingDto.RankingListResponse response = rankingFacade.getRankings(null, 0, 2);
+        RankingDto.RankingListResponse response = rankingFacade.getRankings("daily", null, 0, 2);
 
         // assert
         assertThat(response.content()).hasSize(2);  // 페이지 사이즈만큼
@@ -105,7 +105,7 @@ class RankingFacadeTest {
     @DisplayName("랭킹이 비어있으면 빈 목록을 반환한다")
     void getRankingsTest3() {
         // act
-        RankingDto.RankingListResponse response = rankingFacade.getRankings(null, 0, 20);
+        RankingDto.RankingListResponse response = rankingFacade.getRankings("daily", null, 0, 20);
 
         // assert
         assertThat(response.content()).isEmpty();
@@ -121,7 +121,7 @@ class RankingFacadeTest {
         rankingRedisService.incrementScoreForOrder(TODAY, product3.getId(), 1L); // 0.6점 - 3위
 
         // act - 2페이지 (size=2, page=1)
-        RankingDto.RankingListResponse response = rankingFacade.getRankings(null, 1, 2);
+        RankingDto.RankingListResponse response = rankingFacade.getRankings("daily", null, 1, 2);
 
         // assert
         assertThat(response.content()).hasSize(1);  // 3번째 상품만
