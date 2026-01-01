@@ -4,6 +4,8 @@ import com.loopers.infrastructure.ranking.ProductRankMonthly;
 import com.loopers.infrastructure.ranking.ProductRankMonthlyRepository;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
@@ -62,8 +64,25 @@ public class MonthlyRankingJobConfig {
                 .<ProductMetricsAggregation, ProductRankMonthly>chunk(CHUNK_SIZE, transactionManager)
                 .reader(monthlyMetricsReader(null))
                 .processor(monthlyRankingProcessor(null))
-                .writer(monthlyRankingWriter(null))
+                .writer(monthlyRankingWriter())
+                .listener(monthlyRankingStepListener(null))
                 .build();
+    }
+
+    @Bean
+    @StepScope
+    public StepExecutionListener monthlyRankingStepListener(
+            @Value("#{jobParameters['targetDate']}") String targetDateStr) {
+
+        return new StepExecutionListener() {
+            @Override
+            public void beforeStep(StepExecution stepExecution) {
+                LocalDate targetDate = LocalDate.parse(targetDateStr, DATE_FORMATTER);
+                YearMonth yearMonth = YearMonth.from(targetDate);
+                LocalDate monthStart = yearMonth.atDay(1);
+                productRankMonthlyRepository.deleteByPeriodStart(monthStart);
+            }
+        };
     }
 
     @Bean
@@ -138,17 +157,9 @@ public class MonthlyRankingJobConfig {
     }
 
     @Bean
-    @StepScope
-    public ItemWriter<ProductRankMonthly> monthlyRankingWriter(
-            @Value("#{jobParameters['targetDate']}") String targetDateStr) {
-
-        LocalDate targetDate = LocalDate.parse(targetDateStr, DATE_FORMATTER);
-        YearMonth yearMonth = YearMonth.from(targetDate);
-        LocalDate monthStart = yearMonth.atDay(1);
-
+    public ItemWriter<ProductRankMonthly> monthlyRankingWriter() {
         return items -> {
             if (!items.isEmpty()) {
-                productRankMonthlyRepository.deleteByPeriodStart(monthStart);
                 productRankMonthlyRepository.saveAll(items);
             }
         };

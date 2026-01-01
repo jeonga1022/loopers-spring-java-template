@@ -4,6 +4,8 @@ import com.loopers.infrastructure.ranking.ProductRankWeekly;
 import com.loopers.infrastructure.ranking.ProductRankWeeklyRepository;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
@@ -62,8 +64,24 @@ public class WeeklyRankingJobConfig {
                 .<ProductMetricsAggregation, ProductRankWeekly>chunk(CHUNK_SIZE, transactionManager)
                 .reader(weeklyMetricsReader(null))
                 .processor(weeklyRankingProcessor(null))
-                .writer(weeklyRankingWriter(null))
+                .writer(weeklyRankingWriter())
+                .listener(weeklyRankingStepListener(null))
                 .build();
+    }
+
+    @Bean
+    @StepScope
+    public StepExecutionListener weeklyRankingStepListener(
+            @Value("#{jobParameters['targetDate']}") String targetDateStr) {
+
+        return new StepExecutionListener() {
+            @Override
+            public void beforeStep(StepExecution stepExecution) {
+                LocalDate targetDate = LocalDate.parse(targetDateStr, DATE_FORMATTER);
+                LocalDate weekStart = targetDate.with(DayOfWeek.MONDAY);
+                productRankWeeklyRepository.deleteByPeriodStart(weekStart);
+            }
+        };
     }
 
     @Bean
@@ -136,16 +154,9 @@ public class WeeklyRankingJobConfig {
     }
 
     @Bean
-    @StepScope
-    public ItemWriter<ProductRankWeekly> weeklyRankingWriter(
-            @Value("#{jobParameters['targetDate']}") String targetDateStr) {
-
-        LocalDate targetDate = LocalDate.parse(targetDateStr, DATE_FORMATTER);
-        LocalDate weekStart = targetDate.with(DayOfWeek.MONDAY);
-
+    public ItemWriter<ProductRankWeekly> weeklyRankingWriter() {
         return items -> {
             if (!items.isEmpty()) {
-                productRankWeeklyRepository.deleteByPeriodStart(weekStart);
                 productRankWeeklyRepository.saveAll(items);
             }
         };
