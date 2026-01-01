@@ -7,7 +7,6 @@ import com.loopers.infrastructure.product.ProductJpaRepository;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.utils.DatabaseCleanUp;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,7 +52,6 @@ class RankingApiE2ETest {
     }
 
     @Test
-    @Disabled("Controller 구현 후 활성화")
     @DisplayName("랭킹 조회 시 점수가 높은 순으로 상품 목록을 반환한다")
     void rankingTest1() {
         // arrange
