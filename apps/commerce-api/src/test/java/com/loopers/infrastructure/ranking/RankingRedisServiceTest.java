@@ -12,7 +12,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
 
 @SpringBootTest
 class RankingRedisServiceTest {
@@ -52,7 +51,7 @@ class RankingRedisServiceTest {
     }
 
     @Test
-    @DisplayName("상품 조회 시 0.1점을 증가시킨다")
+    @DisplayName("상품 조회 시 1점을 증가시킨다")
     void incrementScoreForView() {
         // arrange - 아무 데이터 없는 상태
 
@@ -61,11 +60,11 @@ class RankingRedisServiceTest {
 
         // assert
         Double score = redisTemplate.opsForZSet().score(KEY, "1");
-        assertThat(score).isEqualTo(0.1);
+        assertThat(score).isEqualTo(1.0);
     }
 
     @Test
-    @DisplayName("상품 조회 시 기존 점수에 0.1점을 누적한다")
+    @DisplayName("상품 조회 시 기존 점수에 1점을 누적한다")
     void incrementScoreForView_accumulates() {
         // arrange - 이미 3.0점 있는 상태
         redisTemplate.opsForZSet().add(KEY, "1", 3.0);
@@ -75,29 +74,29 @@ class RankingRedisServiceTest {
 
         // assert
         Double score = redisTemplate.opsForZSet().score(KEY, "1");
-        assertThat(score).isEqualTo(3.1);
+        assertThat(score).isEqualTo(4.0);
     }
 
     @Test
-    @DisplayName("좋아요 시 0.2점을 증가시킨다")
+    @DisplayName("좋아요 시 2점을 증가시킨다")
     void incrementScoreForLike() {
         // act
         rankingRedisService.incrementScoreForLike(TODAY, 1L);
 
         // assert
         Double score = redisTemplate.opsForZSet().score(KEY, "1");
-        assertThat(score).isEqualTo(0.2);
+        assertThat(score).isEqualTo(2.0);
     }
 
     @Test
-    @DisplayName("주문 시 수량 * 0.6점을 증가시킨다")
+    @DisplayName("주문 시 수량 * 6점을 증가시킨다")
     void incrementScoreForOrder() {
         // act - 3개 주문
         rankingRedisService.incrementScoreForOrder(TODAY, 1L, 3L);
 
-        // assert - 0.6 * 3 = 1.8
+        // assert - 6.0 * 3 = 18.0
         Double score = redisTemplate.opsForZSet().score(KEY, "1");
-        assertThat(score).isCloseTo(1.8, within(0.0001));  // 부동소수점 오차 허용
+        assertThat(score).isEqualTo(18.0);
     }
 
     @Test

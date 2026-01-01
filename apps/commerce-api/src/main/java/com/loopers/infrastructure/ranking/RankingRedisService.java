@@ -22,9 +22,9 @@ public class RankingRedisService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    private static final double VIEW_SCORE = 0.1;
-    private static final double LIKE_SCORE = 0.2;
-    private static final double ORDER_SCORE = 0.6;
+    private static final double VIEW_SCORE = 1.0;
+    private static final double LIKE_SCORE = 2.0;
+    private static final double ORDER_SCORE = 6.0;
 
     public List<RankingEntry> getTopProducts(LocalDate date, int offset, int limit) {
         String key = generateKey(date);
