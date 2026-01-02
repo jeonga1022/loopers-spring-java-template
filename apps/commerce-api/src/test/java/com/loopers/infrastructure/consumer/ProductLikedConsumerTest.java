@@ -52,11 +52,14 @@ class ProductLikedConsumerTest {
         ProductLikedEvent event = ProductLikedEvent.liked(1L, 100L);
         LocalDate eventDate = event.getOccurredAt().toLocalDate();
 
+        ProductMetrics metrics = ProductMetrics.create(1L, eventDate);
         when(eventHandledRepository.existsByEventId("100")).thenReturn(false);
-        when(productMetricsRepository.findByProductIdAndDate(eq(1L), eq(eventDate))).thenReturn(Optional.empty());
+        when(productMetricsRepository.findByProductIdAndDateForUpdate(eq(1L), eq(eventDate))).thenReturn(Optional.of(metrics));
 
         consumer.consume(event, "100", acknowledgment);
 
+        verify(productMetricsRepository).upsertLikeCount(eq(1L), eq(eventDate), eq(0));
+        verify(productMetricsRepository).findByProductIdAndDateForUpdate(eq(1L), eq(eventDate));
         verify(eventHandledRepository).save(argThat(e -> e.getEventId().equals("100")));
         verify(productMetricsRepository).save(argThat(m -> m.getProductId().equals(1L) && m.getLikeCount() == 1L));
         verify(rankingRedisService).incrementScoreForLike(eq(eventDate), eq(1L));
@@ -74,10 +77,11 @@ class ProductLikedConsumerTest {
         existingMetrics.updateLikeIfNewer(true, LocalDateTime.of(2024, 1, 1, 11, 0));
 
         when(eventHandledRepository.existsByEventId("101")).thenReturn(false);
-        when(productMetricsRepository.findByProductIdAndDate(eq(1L), eq(eventDate))).thenReturn(Optional.of(existingMetrics));
+        when(productMetricsRepository.findByProductIdAndDateForUpdate(eq(1L), eq(eventDate))).thenReturn(Optional.of(existingMetrics));
 
         consumer.consume(event, "101", acknowledgment);
 
+        verify(productMetricsRepository).upsertLikeCount(eq(1L), eq(eventDate), eq(0));
         verify(productMetricsRepository).save(argThat(m -> m.getLikeCount() == 1L));
         verify(rankingRedisService, never()).incrementScoreForLike(any(), any());
         verify(acknowledgment).acknowledge();

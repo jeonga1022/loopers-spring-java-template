@@ -55,19 +55,12 @@ public class ViewLogConsumer {
                             Collectors.counting()
                     ));
 
-            // 3. ProductMetrics 업데이트 + Redis 업데이트
+            // 3. ProductMetrics 업데이트 (원자적 upsert) + Redis 업데이트
             for (Map.Entry<Long, Long> entry : viewCountByProduct.entrySet()) {
                 Long productId = entry.getKey();
                 int count = entry.getValue().intValue();
 
-                ProductMetrics metrics = productMetricsRepository.findByProductIdAndDate(productId, today)
-                        .orElseGet(() -> ProductMetrics.create(productId, today));
-
-                for (int i = 0; i < count; i++) {
-                    metrics.incrementViewCount();
-                }
-                productMetricsRepository.save(metrics);
-
+                productMetricsRepository.upsertViewCount(productId, today, count);
                 rankingRedisService.incrementScoreForView(today, productId, count);
             }
 

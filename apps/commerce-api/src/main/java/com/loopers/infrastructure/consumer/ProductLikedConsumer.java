@@ -51,9 +51,15 @@ public class ProductLikedConsumer {
 
     private void processProductLikedEvent(ProductLikedEvent event) {
         LocalDate eventDate = event.getOccurredAt().toLocalDate();
-        ProductMetrics metrics = productMetricsRepository.findByProductIdAndDate(event.getProductId(), eventDate)
-                .orElseGet(() -> ProductMetrics.create(event.getProductId(), eventDate));
 
+        // 1. 레코드가 없으면 생성 (like_count = 0)
+        productMetricsRepository.upsertLikeCount(event.getProductId(), eventDate, 0);
+
+        // 2. Pessimistic Lock으로 조회
+        ProductMetrics metrics = productMetricsRepository.findByProductIdAndDateForUpdate(event.getProductId(), eventDate)
+                .orElseThrow(() -> new IllegalStateException("ProductMetrics should exist after upsert"));
+
+        // 3. 비즈니스 로직 수행
         if (metrics.updateLikeIfNewer(event.isLiked(), event.getOccurredAt())) {
             productMetricsRepository.save(metrics);
         }

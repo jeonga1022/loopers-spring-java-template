@@ -17,7 +17,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -60,13 +59,11 @@ class OrderCompletedConsumerTest {
         LocalDate eventDate = event.getOccurredAt().toLocalDate();
 
         when(eventHandledRepository.existsByEventId("300")).thenReturn(false);
-        when(productMetricsRepository.findByProductIdAndDate(eq(1L), eq(eventDate))).thenReturn(Optional.empty());
-        when(productMetricsRepository.findByProductIdAndDate(eq(2L), eq(eventDate))).thenReturn(Optional.empty());
 
         consumer.consume(event, "300", acknowledgment);
 
-        verify(productMetricsRepository).save(argThat(m -> m.getProductId().equals(1L) && m.getOrderCount() == 1L && m.getTotalQuantity() == 2L));
-        verify(productMetricsRepository).save(argThat(m -> m.getProductId().equals(2L) && m.getOrderCount() == 1L && m.getTotalQuantity() == 3L));
+        verify(productMetricsRepository).upsertOrder(eq(1L), eq(eventDate), eq(2));
+        verify(productMetricsRepository).upsertOrder(eq(2L), eq(eventDate), eq(3));
         verify(rankingRedisService).incrementScoreForOrder(eq(eventDate), eq(1L), eq(2L));
         verify(rankingRedisService).incrementScoreForOrder(eq(eventDate), eq(2L), eq(3L));
         verify(eventHandledRepository).save(argThat(e -> e.getEventId().equals("300")));

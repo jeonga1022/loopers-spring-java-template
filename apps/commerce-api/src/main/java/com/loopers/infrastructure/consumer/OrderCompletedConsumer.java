@@ -53,12 +53,7 @@ public class OrderCompletedConsumer {
         LocalDate eventDate = event.getOccurredAt().toLocalDate();
 
         for (OrderCompletedEvent.OrderItemInfo item : event.getItems()) {
-            ProductMetrics metrics = productMetricsRepository.findByProductIdAndDate(item.getProductId(), eventDate)
-                    .orElseGet(() -> ProductMetrics.create(item.getProductId(), eventDate));
-
-            metrics.addOrder(item.getQuantity().intValue());
-            productMetricsRepository.save(metrics);
-
+            productMetricsRepository.upsertOrder(item.getProductId(), eventDate, item.getQuantity().intValue());
             rankingRedisService.incrementScoreForOrder(eventDate, item.getProductId(), item.getQuantity());
         }
     }
