@@ -2,6 +2,9 @@ package com.loopers.infrastructure.batch;
 
 import com.loopers.infrastructure.ranking.ProductRankWeekly;
 import com.loopers.infrastructure.ranking.ProductRankWeeklyRepository;
+import com.loopers.infrastructure.ranking.RankingEntry;
+import com.loopers.infrastructure.ranking.RankingRedisService;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.StepExecution;
@@ -26,6 +29,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,15 +44,18 @@ public class WeeklyRankingJobConfig {
     private final PlatformTransactionManager transactionManager;
     private final DataSource dataSource;
     private final ProductRankWeeklyRepository productRankWeeklyRepository;
+    private final RankingRedisService rankingRedisService;
 
     public WeeklyRankingJobConfig(JobRepository jobRepository,
                                   PlatformTransactionManager transactionManager,
                                   DataSource dataSource,
-                                  ProductRankWeeklyRepository productRankWeeklyRepository) {
+                                  ProductRankWeeklyRepository productRankWeeklyRepository,
+                                  RankingRedisService rankingRedisService) {
         this.jobRepository = jobRepository;
         this.transactionManager = transactionManager;
         this.dataSource = dataSource;
         this.productRankWeeklyRepository = productRankWeeklyRepository;
+        this.rankingRedisService = rankingRedisService;
     }
 
     @Bean
@@ -80,6 +87,24 @@ public class WeeklyRankingJobConfig {
                 LocalDate targetDate = LocalDate.parse(targetDateStr, DATE_FORMATTER);
                 LocalDate weekStart = targetDate.with(DayOfWeek.MONDAY);
                 productRankWeeklyRepository.deleteByPeriodStart(weekStart);
+            }
+
+            @Override
+            public ExitStatus afterStep(StepExecution stepExecution) {
+                LocalDate targetDate = LocalDate.parse(targetDateStr, DATE_FORMATTER);
+                LocalDate weekStart = targetDate.with(DayOfWeek.MONDAY);
+
+                List<ProductRankWeekly> weeklyRanks = productRankWeeklyRepository
+                        .findByPeriodStartOrderByRankingAsc(weekStart);
+
+                if (!weeklyRanks.isEmpty()) {
+                    List<RankingEntry> entries = weeklyRanks.stream()
+                            .map(r -> new RankingEntry(r.getProductId(), r.getScore().doubleValue()))
+                            .toList();
+                    rankingRedisService.cacheWeeklyRanking(weekStart, entries);
+                }
+
+                return stepExecution.getExitStatus();
             }
         };
     }

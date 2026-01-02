@@ -2,6 +2,9 @@ package com.loopers.infrastructure.batch;
 
 import com.loopers.infrastructure.ranking.ProductRankMonthly;
 import com.loopers.infrastructure.ranking.ProductRankMonthlyRepository;
+import com.loopers.infrastructure.ranking.RankingEntry;
+import com.loopers.infrastructure.ranking.RankingRedisService;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.StepExecution;
@@ -26,6 +29,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,15 +44,18 @@ public class MonthlyRankingJobConfig {
     private final PlatformTransactionManager transactionManager;
     private final DataSource dataSource;
     private final ProductRankMonthlyRepository productRankMonthlyRepository;
+    private final RankingRedisService rankingRedisService;
 
     public MonthlyRankingJobConfig(JobRepository jobRepository,
                                    PlatformTransactionManager transactionManager,
                                    DataSource dataSource,
-                                   ProductRankMonthlyRepository productRankMonthlyRepository) {
+                                   ProductRankMonthlyRepository productRankMonthlyRepository,
+                                   RankingRedisService rankingRedisService) {
         this.jobRepository = jobRepository;
         this.transactionManager = transactionManager;
         this.dataSource = dataSource;
         this.productRankMonthlyRepository = productRankMonthlyRepository;
+        this.rankingRedisService = rankingRedisService;
     }
 
     @Bean
@@ -81,6 +88,25 @@ public class MonthlyRankingJobConfig {
                 YearMonth yearMonth = YearMonth.from(targetDate);
                 LocalDate monthStart = yearMonth.atDay(1);
                 productRankMonthlyRepository.deleteByPeriodStart(monthStart);
+            }
+
+            @Override
+            public ExitStatus afterStep(StepExecution stepExecution) {
+                LocalDate targetDate = LocalDate.parse(targetDateStr, DATE_FORMATTER);
+                YearMonth yearMonth = YearMonth.from(targetDate);
+                LocalDate monthStart = yearMonth.atDay(1);
+
+                List<ProductRankMonthly> monthlyRanks = productRankMonthlyRepository
+                        .findByPeriodStartOrderByRankingAsc(monthStart);
+
+                if (!monthlyRanks.isEmpty()) {
+                    List<RankingEntry> entries = monthlyRanks.stream()
+                            .map(r -> new RankingEntry(r.getProductId(), r.getScore().doubleValue()))
+                            .toList();
+                    rankingRedisService.cacheMonthlyRanking(monthStart, entries);
+                }
+
+                return stepExecution.getExitStatus();
             }
         };
     }

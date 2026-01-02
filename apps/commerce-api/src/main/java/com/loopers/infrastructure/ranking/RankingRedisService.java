@@ -77,6 +77,66 @@ public class RankingRedisService {
         return count != null ? count : 0;
     }
 
+    // 주간 랭킹 캐시
+    public void cacheWeeklyRanking(LocalDate weekStart, List<RankingEntry> entries) {
+        String key = "ranking:weekly:" + weekStart.format(DATE_FORMATTER);
+        redisTemplate.delete(key);
+        for (RankingEntry entry : entries) {
+            redisTemplate.opsForZSet().add(key, String.valueOf(entry.productId()), entry.score());
+        }
+        redisTemplate.expire(key, 25, TimeUnit.HOURS); // 25시간 TTL
+    }
+
+    public List<RankingEntry> getWeeklyRankingCache(LocalDate weekStart, int offset, int limit) {
+        String key = "ranking:weekly:" + weekStart.format(DATE_FORMATTER);
+        Set<ZSetOperations.TypedTuple<String>> tuples = redisTemplate.opsForZSet()
+                .reverseRangeWithScores(key, offset, offset + limit - 1);
+
+        List<RankingEntry> entries = new ArrayList<>();
+        if (tuples != null) {
+            for (ZSetOperations.TypedTuple<String> tuple : tuples) {
+                entries.add(new RankingEntry(Long.parseLong(tuple.getValue()), tuple.getScore()));
+            }
+        }
+        return entries;
+    }
+
+    public long getWeeklyRankingCacheCount(LocalDate weekStart) {
+        String key = "ranking:weekly:" + weekStart.format(DATE_FORMATTER);
+        Long count = redisTemplate.opsForZSet().zCard(key);
+        return count != null ? count : 0;
+    }
+
+    // 월간 랭킹 캐시
+    public void cacheMonthlyRanking(LocalDate monthStart, List<RankingEntry> entries) {
+        String key = "ranking:monthly:" + monthStart.format(DATE_FORMATTER);
+        redisTemplate.delete(key);
+        for (RankingEntry entry : entries) {
+            redisTemplate.opsForZSet().add(key, String.valueOf(entry.productId()), entry.score());
+        }
+        redisTemplate.expire(key, 25, TimeUnit.HOURS);
+    }
+
+    public List<RankingEntry> getMonthlyRankingCache(LocalDate monthStart, int offset, int limit) {
+        String key = "ranking:monthly:" + monthStart.format(DATE_FORMATTER);
+        Set<ZSetOperations.TypedTuple<String>> tuples = redisTemplate.opsForZSet()
+                .reverseRangeWithScores(key, offset, offset + limit - 1);
+
+        List<RankingEntry> entries = new ArrayList<>();
+        if (tuples != null) {
+            for (ZSetOperations.TypedTuple<String> tuple : tuples) {
+                entries.add(new RankingEntry(Long.parseLong(tuple.getValue()), tuple.getScore()));
+            }
+        }
+        return entries;
+    }
+
+    public long getMonthlyRankingCacheCount(LocalDate monthStart) {
+        String key = "ranking:monthly:" + monthStart.format(DATE_FORMATTER);
+        Long count = redisTemplate.opsForZSet().zCard(key);
+        return count != null ? count : 0;
+    }
+
     private void incrementScoreWithExpire(String key, String member, double score) {
         boolean isNewKey = Boolean.FALSE.equals(redisTemplate.hasKey(key));
         redisTemplate.opsForZSet().incrementScore(key, member, score);
